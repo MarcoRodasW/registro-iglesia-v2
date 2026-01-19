@@ -3,8 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --port 3000",
+    "dev": "concurrently \"vite dev --port 3000\" \"convex dev\"",
+    "dev:vite": "vite dev --port 3000",
+    "dev:convex": "convex dev",
     "build": "vite build",
+    "build:prod": "convex deploy --cmd && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "format": "biome format",
@@ -40,6 +43,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.4",
+    "concurrently": "^9.2.1",
     "@tanstack/devtools-vite": "^0.3.11",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
