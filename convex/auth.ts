@@ -14,19 +14,25 @@ const siteUrl = process.env.SITE_URL!;
 export const authComponent = createClient<DataModel>(components.betterAuth);
 
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
-  return betterAuth({
-    baseURL: siteUrl,
-    database: authComponent.adapter(ctx),
-    // Configure simple, non-verified email/password to get started
-    emailAndPassword: {
-      enabled: true,
-      requireEmailVerification: false,
-    },
-    plugins: [
-      // The Convex plugin is required for Convex compatibility
-      convex({ authConfig }),
-    ],
-  });
+	return betterAuth({
+		baseURL: siteUrl,
+		database: authComponent.adapter(ctx),
+		// Configure simple, non-verified email/password to get started
+		emailAndPassword: {
+			enabled: true,
+			requireEmailVerification: false,
+		},
+		socialProviders: {
+			google: {
+				clientId: process.env.GOOGLE_CLIENT_ID!,
+				clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+			},
+		},
+		plugins: [
+			// The Convex plugin is required for Convex compatibility
+			convex({ authConfig }),
+		],
+	});
 };
 
 // Example function for getting the current user
