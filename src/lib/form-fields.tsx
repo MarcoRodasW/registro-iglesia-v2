@@ -72,6 +72,7 @@ interface NumberFieldFormProps extends BaseFieldProps {
 	max?: number;
 	step?: number;
 	size?: "sm" | "default" | "lg";
+	disabled?: boolean;
 }
 
 interface SubmitButtonProps
@@ -376,6 +377,7 @@ function NumberFieldForm({
 	max,
 	step,
 	size = "default",
+	disabled,
 }: NumberFieldFormProps) {
 	const hasError =
 		field.state.meta.isTouched && field.state.meta.errors.length > 0;
@@ -391,6 +393,7 @@ function NumberFieldForm({
 				max={max}
 				step={step}
 				size={size}
+				disabled={disabled}
 			>
 				<NumberFieldGroup aria-invalid={hasError || undefined}>
 					<NumberFieldDecrement />

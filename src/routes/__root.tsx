@@ -14,6 +14,7 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { createServerFn } from "@tanstack/react-start";
+import { ToastProvider } from "@/components/ui/toast";
 import { authClient } from "@/lib/auth-client";
 import { getToken } from "@/lib/auth-server";
 import appCss from "../styles.css?url";
@@ -77,7 +78,9 @@ function RootComponent() {
 			authClient={authClient}
 			initialToken={context.token}
 		>
-			<Outlet />
+			<ToastProvider position="bottom-right">
+				<Outlet />
+			</ToastProvider>
 			<TanStackDevtools
 				config={{
 					position: "bottom-right",
