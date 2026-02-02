@@ -3,9 +3,20 @@ import type { Id } from "@convex/dataModel";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilIcon, SearchIcon, Trash2Icon, UsersIcon } from "lucide-react";
+import {
+	useInfiniteQuery,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
+import {
+	ArrowUp,
+	PencilIcon,
+	SearchIcon,
+	Trash2Icon,
+	UsersIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { useInView } from "react-intersection-observer";
 import { z } from "zod";
 
 import {
@@ -36,14 +47,11 @@ import {
 	EmptyMedia,
 	EmptyTitle,
 } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
 import {
-	Pagination,
-	PaginationContent,
-	PaginationItem,
-	PaginationNext,
-	PaginationPrevious,
-} from "@/components/ui/pagination";
+	InputGroup,
+	InputGroupAddon,
+	InputGroupInput,
+} from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -63,47 +71,131 @@ import {
 } from "@/lib/form-fields";
 
 // ============================================================================
+// Types
+// ============================================================================
+
+interface MemberData {
+	_id: Id<"members">;
+	fullName: string;
+	phone: string;
+	address: string;
+	email?: string;
+	age?: number;
+	childrenCount?: number;
+	firstVisitDate?: number;
+	notes?: string;
+}
+
+interface MembersListResponse {
+	members: MemberData[];
+	nextCursor: string | null;
+	hasMore: boolean;
+	totalCount: number;
+	currentPage: number;
+	totalPages: number;
+	pageSize: number;
+}
+
+// ============================================================================
 // Members Table Component
 // ============================================================================
 
 export function MembersTable() {
 	const [search, setSearch] = useState("");
 	const [debouncedSearch, setDebouncedSearch] = useState("");
-	const [cursor, setCursor] = useState<string | undefined>(undefined);
-	const [cursorHistory, setCursorHistory] = useState<(string | undefined)[]>(
-		[],
-	);
+	const [showJumpToTop, setShowJumpToTop] = useState(false);
+	const queryClient = useQueryClient();
 
 	// Debounce search
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			setDebouncedSearch(search);
-			setCursor(undefined);
-			setCursorHistory([]);
 		}, 300);
 		return () => clearTimeout(timer);
 	}, [search]);
 
-	const { data, isLoading, isError } = useQuery(
-		convexQuery(api.members.list, {
-			cursor,
-			search: debouncedSearch || undefined,
-		}),
-	);
+	// Infinite scroll query
+	const {
+		data,
+		fetchNextPage,
+		hasNextPage,
+		isFetchingNextPage,
+		isLoading,
+		isError,
+		refetch,
+	} = useInfiniteQuery({
+		queryKey: ["members", "list", debouncedSearch || ""],
+		queryFn: async ({ pageParam }) => {
+			const result = await queryClient.fetchQuery(
+				convexQuery(api.members.list, {
+					cursor: pageParam as string | undefined,
+					search: debouncedSearch || undefined,
+				}),
+			);
+			return result;
+		},
+		getNextPageParam: (lastPage) => {
+			if (!lastPage || !(lastPage as MembersListResponse).hasMore)
+				return undefined;
+			return (lastPage as MembersListResponse).nextCursor ?? undefined;
+		},
+		initialPageParam: undefined as string | undefined,
+	});
 
-	const handlePrevPage = () => {
-		if (cursorHistory.length > 0) {
-			const newHistory = [...cursorHistory];
-			const prevCursor = newHistory.pop();
-			setCursorHistory(newHistory);
-			setCursor(prevCursor);
+	// Reset query when search changes
+	useEffect(() => {
+		if (debouncedSearch !== undefined) {
+			refetch();
 		}
+	}, [debouncedSearch, refetch]);
+
+	// Flatten all pages
+	const allMembers = data?.pages.flatMap((page) => page.members) ?? [];
+	const totalCount = data?.pages[0]?.totalCount ?? 0;
+	const totalLoaded = allMembers.length;
+
+	// Intersection observer for auto-loading first page
+	const { ref: loadMoreRef, inView } = useInView({
+		threshold: 0,
+		rootMargin: "100px",
+	});
+
+	// Auto-load first page only when search is empty and we have less than 25 members
+	useEffect(() => {
+		if (
+			inView &&
+			!debouncedSearch &&
+			totalLoaded === 0 &&
+			hasNextPage &&
+			!isFetchingNextPage
+		) {
+			fetchNextPage();
+		}
+	}, [
+		inView,
+		debouncedSearch,
+		totalLoaded,
+		hasNextPage,
+		isFetchingNextPage,
+		fetchNextPage,
+	]);
+
+	// Track scroll position for Jump to Top button
+	useEffect(() => {
+		const handleScroll = () => {
+			setShowJumpToTop(window.scrollY > 300);
+		};
+		window.addEventListener("scroll", handleScroll);
+		return () => window.removeEventListener("scroll", handleScroll);
+	}, []);
+
+	const handleJumpToTop = () => {
+		window.scrollTo({ top: 0, behavior: "smooth" });
 	};
 
-	const handleNextPage = () => {
-		if (data?.nextCursor) {
-			setCursorHistory([...cursorHistory, cursor]);
-			setCursor(data.nextCursor);
+	const handleLoadMore = () => {
+		if (hasNextPage && !isFetchingNextPage) {
+			fetchNextPage();
 		}
 	};
 
@@ -112,23 +204,24 @@ export function MembersTable() {
 			<CardHeader>
 				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 					<CardTitle>Listado de Miembros</CardTitle>
-					<div className="relative w-full sm:w-64">
-						<SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-						<Input
+					<InputGroup className="w-full sm:w-64">
+						<InputGroupAddon align="inline-start">
+							<SearchIcon />
+						</InputGroupAddon>
+						<InputGroupInput
 							placeholder="Buscar por nombre..."
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
-							className="pl-9"
 						/>
-					</div>
+					</InputGroup>
 				</div>
 			</CardHeader>
 			<CardContent>
-				{isLoading ? (
+				{isLoading && totalLoaded === 0 ? (
 					<TableSkeleton />
 				) : isError ? (
 					<ErrorState />
-				) : !data?.members || data.members.length === 0 ? (
+				) : allMembers.length === 0 ? (
 					<EmptyState search={debouncedSearch} />
 				) : (
 					<>
@@ -152,47 +245,61 @@ export function MembersTable() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{data.members.map((member) => (
+									{allMembers.map((member) => (
 										<MemberRow key={member._id} member={member} />
 									))}
+									{isFetchingNextPage && <TableSkeletonRows />}
 								</TableBody>
 							</Table>
 						</div>
 
-						{/* Pagination */}
-						<div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+						{/* Load More Button & Counter */}
+						<div className="flex flex-col items-center gap-4 mt-6">
 							<p className="text-sm text-muted-foreground">
-								Página {data.currentPage} de {data.totalPages} (
-								{data.totalCount} miembros)
+								Mostrando {totalLoaded} de {totalCount} miembros
 							</p>
-							<Pagination>
-								<PaginationContent>
-									<PaginationItem>
-										<PaginationPrevious
-											onClick={handlePrevPage}
-											className={
-												cursorHistory.length === 0
-													? "pointer-events-none opacity-50"
-													: "cursor-pointer"
-											}
-										/>
-									</PaginationItem>
-									<PaginationItem>
-										<PaginationNext
-											onClick={handleNextPage}
-											className={
-												!data.hasMore
-													? "pointer-events-none opacity-50"
-													: "cursor-pointer"
-											}
-										/>
-									</PaginationItem>
-								</PaginationContent>
-							</Pagination>
+
+							{hasNextPage ? (
+								<Button
+									onClick={handleLoadMore}
+									disabled={isFetchingNextPage}
+									variant="outline"
+									size="default"
+								>
+									{isFetchingNextPage ? (
+										<>
+											<Spinner className="size-4 mr-2" />
+											Cargando...
+										</>
+									) : (
+										"Cargar más miembros"
+									)}
+								</Button>
+							) : (
+								<p className="text-sm text-muted-foreground">
+									No hay más miembros para cargar
+								</p>
+							)}
 						</div>
+
+						{/* Intersection observer sentinel for initial load */}
+						<div ref={loadMoreRef} className="h-4" />
 					</>
 				)}
 			</CardContent>
+
+			{/* Jump to Top Button */}
+			{showJumpToTop && (
+				<Button
+					onClick={handleJumpToTop}
+					variant="secondary"
+					size="icon"
+					className="fixed bottom-4 right-4 shadow-lg z-50"
+					aria-label="Volver arriba"
+				>
+					<ArrowUp className="size-4" />
+				</Button>
+			)}
 		</Card>
 	);
 }
@@ -200,18 +307,6 @@ export function MembersTable() {
 // ============================================================================
 // Member Row Component
 // ============================================================================
-
-interface MemberData {
-	_id: Id<"members">;
-	fullName: string;
-	phone: string;
-	address: string;
-	email?: string;
-	age?: number;
-	childrenCount?: number;
-	firstVisitDate?: number;
-	notes?: string;
-}
 
 interface MemberRowProps {
 	member: MemberData;
@@ -583,6 +678,21 @@ function TableSkeleton() {
 				<Skeleton key={`table-skeleton-${i}`} className="h-12 w-full" />
 			))}
 		</div>
+	);
+}
+
+function TableSkeletonRows() {
+	return (
+		<>
+			{Array.from({ length: 3 }).map((_, i) => (
+				// biome-ignore lint/suspicious/noArrayIndexKey: skeleton items have no unique id
+				<TableRow key={`skeleton-row-${i}`}>
+					<TableCell colSpan={7}>
+						<Skeleton className="h-10 w-full" />
+					</TableCell>
+				</TableRow>
+			))}
+		</>
 	);
 }
 
