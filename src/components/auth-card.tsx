@@ -256,6 +256,15 @@ export function AuthCard() {
 	return (
 		<Card className="w-full max-w-md">
 			<CardHeader className="text-center">
+				<div className="flex justify-center mb-6">
+					<div className="relative rounded-xl bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 p-3 shadow-lg ring-1 ring-slate-200/50 dark:ring-slate-700/50">
+						<img
+							src="/church_logo.png"
+							alt="Iglesia Casa de David"
+							className="h-24 w-auto object-contain rounded-lg drop-shadow-md"
+						/>
+					</div>
+				</div>
 				<CardTitle className="text-2xl">Welcome</CardTitle>
 				<CardDescription>
 					Sign in to your account or create a new one

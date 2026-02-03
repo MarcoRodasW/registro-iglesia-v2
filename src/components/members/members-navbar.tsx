@@ -44,7 +44,23 @@ export function MembersNavbar() {
 			<div className="mx-auto max-w-6xl container px-4">
 				<div className="flex h-14 items-center justify-between">
 					{/* Logo/Title */}
-					<div className="font-semibold text-lg">Registro Iglesia</div>
+					<div className="flex items-center gap-3">
+						<div className="rounded-lg bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 p-1 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50 hover:shadow-md transition-shadow">
+							<img
+								src="/church_logo.png"
+								alt="Iglesia Casa de David"
+								className="h-8 w-auto object-contain rounded"
+							/>
+						</div>
+						<div className="flex flex-col">
+							<span className="font-semibold text-lg leading-tight">
+								Registro
+							</span>
+							<span className="text-xs text-muted-foreground hidden sm:block">
+								Casa de David
+							</span>
+						</div>
+					</div>
 
 					{/* User Menu */}
 					{isLoading ? (
