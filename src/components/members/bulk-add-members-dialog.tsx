@@ -1,8 +1,5 @@
-import { api } from "@convex/api";
-import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
-import type { AnyFieldApi } from "@tanstack/react-form";
+import type { AnyFieldApi, AnyFormApi } from "@tanstack/react-form";
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, PlusIcon, SaveIcon, XIcon } from "lucide-react";
 import { useCallback, useId, useState } from "react";
 import { z } from "zod";
@@ -21,64 +18,36 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { toastManager } from "@/components/ui/toast";
+import { useBulkMembersDraft } from "@/hooks/use-bulk-members-draft";
+import { useMemberMutations } from "@/hooks/use-member-mutations";
 import {
 	NumberFieldForm,
 	SubmitButton,
 	TextareaField,
 	TextField,
 } from "@/lib/form-fields";
+import { type MemberFields, toMemberPayload } from "@/lib/member-payload";
 import {
-	clearDraft,
 	emptyMemberRow,
-	loadDraft,
 	type MemberFormData,
 	membersArraySchema,
-	saveDraft,
 } from "@/lib/member-schema";
-
-// ============================================================================
-// Bulk Add Members Dialog
-// ============================================================================
 
 export function BulkAddMembersDialog() {
 	const [open, setOpen] = useState(false);
 	const formId = useId();
-	const queryClient = useQueryClient();
 
-	// Estado para rastrear qué miembros ya fueron guardados (por índice)
-	const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
-	// Estado para rastrear qué miembro se está guardando actualmente
-	const [savingIndex, setSavingIndex] = useState<number | null>(null);
-
-	const invalidateQueries = useCallback(() => {
-		queryClient.invalidateQueries({
-			queryKey: convexQuery(api.members.list, {}).queryKey,
-		});
-		queryClient.invalidateQueries({
-			queryKey: convexQuery(api.members.count, {}).queryKey,
-		});
-	}, [queryClient]);
-
-	// Mutación para crear un solo miembro
-	const createSingle = useConvexMutation(api.members.createMember);
-	const singleMutation = useMutation({
-		mutationFn: createSingle,
-		onSuccess: invalidateQueries,
-	});
-
-	// Mutación para crear múltiples miembros
-	const createBatch = useConvexMutation(api.members.createMembersBatch);
-	const mutation = useMutation({
-		mutationFn: createBatch,
-		onSuccess: invalidateQueries,
-	});
-
-	// Load draft from localStorage on mount
-	const [initialMembers] = useState<MemberFormData[]>(() => {
-		if (typeof window === "undefined") return [emptyMemberRow];
-		const draft = loadDraft();
-		return draft && draft.length > 0 ? draft : [emptyMemberRow];
-	});
+	const { createMember, createMembersBatch } = useMemberMutations();
+	const {
+		initialMembers,
+		savedIndices,
+		markSaved,
+		setSavingIndex,
+		isSaving,
+		saveToDraft,
+		clearDraftState,
+		resetSavedIndices,
+	} = useBulkMembersDraft();
 
 	const form = useForm({
 		defaultValues: {
@@ -88,70 +57,48 @@ export function BulkAddMembersDialog() {
 			onChange: membersArraySchema,
 		},
 		onSubmit: async ({ value }) => {
-			try {
-				// Filter out empty rows and already saved members
-				const validMembers = value.members.filter(
-					(m, idx) => m.fullName.trim() !== "" && !savedIndices.has(idx),
-				);
-				if (validMembers.length === 0) {
-					// Si no hay miembros nuevos pero hay guardados, solo cerrar
-					if (savedIndices.size > 0) {
-						clearDraft();
-						form.reset();
-						form.setFieldValue("members", [emptyMemberRow]);
-						handleOpenChange(false);
-						return;
-					}
-					toastManager.add({
-						title: "No hay miembros para guardar",
-						type: "warning",
-					});
+			// Filter out empty rows and already saved members
+			const validMembers = value.members.filter(
+				(m, idx) => m.fullName.trim() !== "" && !savedIndices.has(idx),
+			);
+
+			if (validMembers.length === 0) {
+				if (savedIndices.size > 0) {
+					clearDraftState();
+					form.reset();
+					form.setFieldValue("members", [emptyMemberRow]);
+					handleOpenChange(false);
 					return;
 				}
-
-				// Transform data: convert empty strings to undefined for optional fields
-				const membersToSave = validMembers.map((m) => ({
-					fullName: m.fullName,
-					phone: m.phone,
-					address: m.address,
-					email: m.email && m.email.trim() !== "" ? m.email : undefined,
-					age: m.age,
-					childrenCount: m.childrenCount,
-					firstVisitDate: m.firstVisitDate,
-					notes: m.notes && m.notes.trim() !== "" ? m.notes : undefined,
-				}));
-
-				await mutation.mutateAsync({ members: membersToSave });
-				clearDraft();
-				form.reset();
-				form.setFieldValue("members", [emptyMemberRow]);
-				handleOpenChange(false);
 				toastManager.add({
-					title: `${validMembers.length} miembro(s) guardado(s)`,
-					type: "success",
+					title: "No hay miembros para guardar",
+					type: "warning",
 				});
-			} catch (error) {
-				toastManager.add({
-					title: "Error al guardar los miembros",
-					type: "error",
-				});
-				console.error(error);
+
+				return;
 			}
+
+			const membersToSave = validMembers.map(toMemberPayload) as MemberFields[];
+			await createMembersBatch.mutateAsync({ members: membersToSave });
+
+			clearDraftState();
+			form.reset();
+			form.setFieldValue("members", [emptyMemberRow]);
+			handleOpenChange(false);
 		},
 	});
 
 	// Save to localStorage when form values change
 	const handleFormChange = useCallback(() => {
 		const members = form.getFieldValue("members");
-		saveDraft(members);
-	}, [form]);
+		saveToDraft(members as MemberFormData[]);
+	}, [form, saveToDraft]);
 
 	// Guardar un miembro individualmente
 	const handleSaveSingle = useCallback(
 		async (index: number) => {
 			const member = form.getFieldValue(`members[${index}]`) as MemberFormData;
 
-			// Validar que tenga los campos requeridos
 			if (
 				!member.fullName?.trim() ||
 				!member.phone?.trim() ||
@@ -161,29 +108,14 @@ export function BulkAddMembersDialog() {
 					title: "Completa los campos requeridos",
 					type: "warning",
 				});
+
 				return;
 			}
 
 			setSavingIndex(index);
 			try {
-				await singleMutation.mutateAsync({
-					fullName: member.fullName,
-					phone: member.phone,
-					address: member.address,
-					email:
-						member.email && member.email.trim() !== ""
-							? member.email
-							: undefined,
-					age: member.age,
-					childrenCount: member.childrenCount,
-					firstVisitDate: member.firstVisitDate,
-					notes:
-						member.notes && member.notes.trim() !== ""
-							? member.notes
-							: undefined,
-				});
-
-				setSavedIndices((prev) => new Set(prev).add(index));
+				await createMember.mutateAsync(toMemberPayload(member));
+				markSaved(index);
 				toastManager.add({
 					title: `${member.fullName} guardado`,
 					type: "success",
@@ -198,18 +130,19 @@ export function BulkAddMembersDialog() {
 				setSavingIndex(null);
 			}
 		},
-		[form, singleMutation],
+		[form, createMember, markSaved, setSavingIndex],
 	);
 
 	// Resetear estado cuando se cierra el dialog
-	const handleOpenChange = useCallback((newOpen: boolean) => {
-		setOpen(newOpen);
-		if (!newOpen) {
-			// Limpiar los índices guardados al cerrar
-			setSavedIndices(new Set());
-			setSavingIndex(null);
-		}
-	}, []);
+	const handleOpenChange = useCallback(
+		(newOpen: boolean) => {
+			setOpen(newOpen);
+			if (!newOpen) {
+				resetSavedIndices();
+			}
+		},
+		[resetSavedIndices],
+	);
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
@@ -252,7 +185,7 @@ export function BulkAddMembersDialog() {
 											}}
 											canRemove={field.state.value.length > 1}
 											isSaved={savedIndices.has(index)}
-											isSaving={savingIndex === index}
+											isSaving={isSaving(index)}
 											onSaveSingle={() => handleSaveSingle(index)}
 										/>
 									))}
@@ -302,13 +235,8 @@ export function BulkAddMembersDialog() {
 	);
 }
 
-// ============================================================================
-// Member Row Form Component
-// ============================================================================
-
 interface MemberRowFormProps {
-	// biome-ignore lint/suspicious/noExplicitAny: TanStack Form types are complex
-	form: any;
+	form: AnyFormApi;
 	index: number;
 	onRemove: () => void;
 	canRemove: boolean;
@@ -330,7 +258,6 @@ function MemberRowForm({
 		<div
 			className={`border rounded-lg p-4 space-y-4 relative bg-card ${isSaved ? "opacity-75" : ""}`}
 		>
-			{/* Header con badge y botones */}
 			<div className="flex items-center justify-between gap-2 pr-8">
 				<Badge variant={isSaved ? "success" : "outline"} size="sm">
 					{isSaved ? (

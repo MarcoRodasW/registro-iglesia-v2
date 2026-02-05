@@ -21,7 +21,10 @@ export const Route = createFileRoute("/")({
 			queryClient.ensureQueryData(convexQuery(api.auth.getCurrentUser, {})),
 			queryClient.ensureQueryData(convexQuery(api.members.count, {})),
 			queryClient.ensureQueryData(
-				convexQuery(api.members.list, { cursor: undefined, search: undefined }),
+				convexQuery(api.members.list, {
+					paginationOpts: { numItems: 25, cursor: null },
+					search: undefined,
+				}),
 			),
 		]);
 	},

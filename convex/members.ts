@@ -1,34 +1,28 @@
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { authedMutation, authedQuery } from "./utils";
+import { memberFieldsValidator } from "./member-types";
 
-const memberFields = {
-	fullName: v.string(),
-	phone: v.string(),
-	address: v.string(),
-	email: v.optional(v.string()),
-	age: v.optional(v.number()),
-	childrenCount: v.optional(v.number()),
-	firstVisitDate: v.optional(v.number()),
-	notes: v.optional(v.string()),
-};
+// Extract fields from the shared validator for use in mutations
+const memberFields = memberFieldsValidator.fields;
 
-const PAGE_SIZE = 25;
-
-// Query: Lista paginada de miembros con filtro por nombre
+// Query: Lista paginada de miembros con filtro por nombre usando paginación nativa de Convex
 export const list = authedQuery({
 	args: {
-		cursor: v.optional(v.string()),
+		paginationOpts: paginationOptsValidator,
 		search: v.optional(v.string()),
 	},
 	handler: async (ctx, args) => {
-		const { cursor, search } = args;
+		const { paginationOpts, search } = args;
 
-		// Get all members and filter by search if provided
-		let query = ctx.db.query("members");
+		// Get all members ordered by creation time (newest first)
+		// Note: For large datasets, consider using an index
+		const allMembers = await ctx.db
+			.query("members")
+			.order("desc")
+			.collect();
 
-		const allMembers = await query.collect();
-
-		// Filter by search term if provided
+		// Filter by search term if provided (case-insensitive)
 		let filteredMembers = allMembers;
 		if (search && search.trim() !== "") {
 			const searchLower = search.toLowerCase();
@@ -37,11 +31,10 @@ export const list = authedQuery({
 			);
 		}
 
-		// Sort by creation time (newest first)
-		filteredMembers.sort((a, b) => b._creationTime - a._creationTime);
-
-		// Implement cursor-based pagination
+		// Manual cursor-based pagination
+		const cursor = paginationOpts.cursor;
 		let startIndex = 0;
+
 		if (cursor) {
 			const cursorIndex = filteredMembers.findIndex((m) => m._id === cursor);
 			if (cursorIndex !== -1) {
@@ -49,23 +42,18 @@ export const list = authedQuery({
 			}
 		}
 
-		const pageMembers = filteredMembers.slice(startIndex, startIndex + PAGE_SIZE);
-		const hasMore = startIndex + PAGE_SIZE < filteredMembers.length;
-		const nextCursor = hasMore ? pageMembers[pageMembers.length - 1]?._id : null;
-
-		// Calculate page info
-		const totalCount = filteredMembers.length;
-		const currentPage = Math.floor(startIndex / PAGE_SIZE) + 1;
-		const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+		const pageMembers = filteredMembers.slice(
+			startIndex,
+			startIndex + paginationOpts.numItems,
+		);
+		const isDone = startIndex + paginationOpts.numItems >= filteredMembers.length;
+		const continueCursor =
+			pageMembers.length > 0 ? pageMembers[pageMembers.length - 1]._id : cursor;
 
 		return {
-			members: pageMembers,
-			nextCursor,
-			hasMore,
-			totalCount,
-			currentPage,
-			totalPages,
-			pageSize: PAGE_SIZE,
+			page: pageMembers,
+			continueCursor,
+			isDone,
 		};
 	},
 });
