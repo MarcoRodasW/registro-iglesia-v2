@@ -28,7 +28,7 @@ import {
 } from "@/lib/form-fields";
 import { type MemberFields, toMemberPayload } from "@/lib/member-payload";
 import {
-	emptyMemberRow,
+	createEmptyMemberRow,
 	type MemberFormData,
 	membersArraySchema,
 } from "@/lib/member-schema";
@@ -65,7 +65,7 @@ export function BulkAddMembersDialog() {
 				if (savedIndices.size > 0) {
 					clearDraftState();
 					form.reset();
-					form.setFieldValue("members", [emptyMemberRow]);
+					form.setFieldValue("members", [createEmptyMemberRow()]);
 					handleOpenChange(false);
 					return;
 				}
@@ -82,7 +82,7 @@ export function BulkAddMembersDialog() {
 
 			clearDraftState();
 			form.reset();
-			form.setFieldValue("members", [emptyMemberRow]);
+			form.setFieldValue("members", [createEmptyMemberRow()]);
 			handleOpenChange(false);
 		},
 	});
@@ -170,9 +170,9 @@ export function BulkAddMembersDialog() {
 						<form.Field name="members" mode="array">
 							{(field) => (
 								<div className="space-y-4">
-									{field.state.value.map((_, index) => (
+									{field.state.value.map((row, index) => (
 										<MemberRowForm
-											key={`member-row-${field.state.value[index]?.fullName || ""}-${index}`}
+											key={row._rowId ?? index}
 											onRemove={() => {
 												field.removeValue(index);
 												handleFormChange();
@@ -307,7 +307,7 @@ export function BulkAddMembersDialog() {
 										type="button"
 										variant="outline"
 										onClick={() => {
-											field.pushValue(emptyMemberRow);
+											field.pushValue(createEmptyMemberRow());
 											handleFormChange();
 										}}
 										className="w-full"

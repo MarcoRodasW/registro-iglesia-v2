@@ -1,4 +1,4 @@
-import type { MemberFields } from "../../convex/member-types";
+import type { MemberFields } from "../../convex/memberTypes";
 import type { MemberFormData } from "./member-schema";
 
 // Re-exportar el tipo para uso en componentes

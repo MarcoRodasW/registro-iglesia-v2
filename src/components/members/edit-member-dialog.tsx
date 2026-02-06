@@ -14,6 +14,7 @@ import {
 	DialogPanel,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { toastManager } from "@/components/ui/toast";
 import { useMemberMutations } from "@/hooks/use-member-mutations";
 import {
 	NumberFieldForm,
@@ -55,33 +56,46 @@ export function EditMemberDialog({
 			notes: member.notes ?? "",
 		},
 		onSubmit: async ({ value }) => {
-			await updateMember.mutateAsync({
-				id: member._id,
-				fullName: value.fullName,
-				phone: value.phone,
-				address: value.address,
-				email: value.email || undefined,
-				age: value.age,
-				childrenCount: value.childrenCount,
-				firstVisitDate: value.firstVisitDate,
-				notes: value.notes || undefined,
-			});
-			onOpenChange(false);
+			try {
+				await updateMember.mutateAsync({
+					id: member._id,
+					fullName: value.fullName,
+					phone: value.phone,
+					address: value.address,
+					email: value.email || undefined,
+					age: value.age,
+					childrenCount: value.childrenCount,
+					firstVisitDate: value.firstVisitDate,
+					notes: value.notes || undefined,
+				});
+				toastManager.add({
+					title: "Miembro actualizado",
+					type: "success",
+				});
+				onOpenChange(false);
+			} catch (error) {
+				toastManager.add({
+					title: "Error al actualizar el miembro",
+					type: "error",
+				});
+				console.error(error);
+			}
 		},
 	});
 
-	// Reset form when member changes
+	// Reset form values when dialog opens or member changes
 	useEffect(() => {
 		if (open) {
-			form.reset();
-			form.setFieldValue("fullName", member.fullName);
-			form.setFieldValue("phone", member.phone);
-			form.setFieldValue("address", member.address);
-			form.setFieldValue("email", member.email ?? "");
-			form.setFieldValue("age", member.age);
-			form.setFieldValue("childrenCount", member.childrenCount);
-			form.setFieldValue("firstVisitDate", member.firstVisitDate);
-			form.setFieldValue("notes", member.notes ?? "");
+			form.reset({
+				fullName: member.fullName,
+				phone: member.phone,
+				address: member.address,
+				email: member.email ?? "",
+				age: member.age,
+				childrenCount: member.childrenCount,
+				firstVisitDate: member.firstVisitDate,
+				notes: member.notes ?? "",
+			});
 		}
 	}, [open, member, form]);
 

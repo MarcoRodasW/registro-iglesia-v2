@@ -2,6 +2,7 @@ import { z } from "zod";
 
 // Schema de validación para un miembro individual (para formularios con strings vacíos)
 export const memberSchema = z.object({
+	_rowId: z.string().optional(),
 	fullName: z.string().min(1, "El nombre es requerido"),
 	phone: z.string().min(1, "El teléfono es requerido"),
 	address: z.string().min(1, "La dirección es requerida"),
@@ -25,7 +26,23 @@ export type MemberFormData = z.infer<typeof memberSchema>;
 export type MembersArrayFormData = z.infer<typeof membersArraySchema>;
 
 // Valores por defecto para una fila vacía
+export function createEmptyMemberRow(): MemberFormData {
+	return {
+		_rowId: crypto.randomUUID(),
+		fullName: "",
+		phone: "",
+		address: "",
+		email: "",
+		age: undefined,
+		childrenCount: undefined,
+		firstVisitDate: undefined,
+		notes: "",
+	};
+}
+
+/** @deprecated Use createEmptyMemberRow() for stable keys */
 export const emptyMemberRow: MemberFormData = {
+	_rowId: crypto.randomUUID(),
 	fullName: "",
 	phone: "",
 	address: "",

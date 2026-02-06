@@ -106,11 +106,11 @@ function FieldErrors({ field }: { field: AnyFieldApi }) {
 
 	return (
 		<div className="flex flex-col gap-1">
-			{errors.map((error) => {
+			{errors.map((error, index) => {
 				const errorMessage = normalizeErrorMessage(error);
 				return (
 					<span
-						key={`${field.name}-${errorMessage}`}
+						key={`${field.name}-error-${index}`}
 						className="text-destructive-foreground text-xs"
 						role="alert"
 					>

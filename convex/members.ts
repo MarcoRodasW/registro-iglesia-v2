@@ -1,7 +1,7 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { authedMutation, authedQuery } from "./utils";
-import { memberFieldsValidator } from "./member-types";
+import { memberFieldsValidator } from "./memberTypes";
 
 // Extract fields from the shared validator for use in mutations
 const memberFields = memberFieldsValidator.fields;
@@ -17,10 +17,7 @@ export const list = authedQuery({
 
 		// Get all members ordered by creation time (newest first)
 		// Note: For large datasets, consider using an index
-		const allMembers = await ctx.db
-			.query("members")
-			.order("desc")
-			.collect();
+		const allMembers = await ctx.db.query("members").order("desc").collect();
 
 		// Filter by search term if provided (case-insensitive)
 		let filteredMembers = allMembers;
@@ -46,7 +43,8 @@ export const list = authedQuery({
 			startIndex,
 			startIndex + paginationOpts.numItems,
 		);
-		const isDone = startIndex + paginationOpts.numItems >= filteredMembers.length;
+		const isDone =
+			startIndex + paginationOpts.numItems >= filteredMembers.length;
 		const continueCursor =
 			pageMembers.length > 0 ? pageMembers[pageMembers.length - 1]._id : cursor;
 

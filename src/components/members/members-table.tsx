@@ -5,7 +5,7 @@ import {
 	Trash2Icon,
 	UsersIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,18 @@ export function MembersTable() {
 		loadMoreRef,
 		totalLoaded,
 	} = useMembersList();
+
+	// Centralized modal state - only one dialog is mounted at a time
+	const [editMember, setEditMember] = useState<MemberData | null>(null);
+	const [deleteMember, setDeleteMember] = useState<MemberData | null>(null);
+
+	const handleEditOpen = useCallback((member: MemberData) => {
+		setEditMember(member);
+	}, []);
+
+	const handleDeleteOpen = useCallback((member: MemberData) => {
+		setDeleteMember(member);
+	}, []);
 
 	const handleLoadMore = () => {
 		if (hasNextPage && !isFetchingNextPage) {
@@ -102,7 +114,12 @@ export function MembersTable() {
 								</TableHeader>
 								<TableBody>
 									{members.map((member) => (
-										<MemberRow key={member._id} member={member} />
+										<MemberRow
+											key={member._id}
+											member={member}
+											onEdit={handleEditOpen}
+											onDelete={handleDeleteOpen}
+										/>
 									))}
 									{isFetchingNextPage && <TableSkeletonRows />}
 								</TableBody>
@@ -153,66 +170,72 @@ export function MembersTable() {
 					<ArrowUp className="size-4" />
 				</Button>
 			)}
+
+			{/* Centralized dialogs - only one mounts at a time */}
+			{editMember && (
+				<EditMemberDialog
+					member={editMember}
+					open={true}
+					onOpenChange={(open) => {
+						if (!open) setEditMember(null);
+					}}
+				/>
+			)}
+			{deleteMember && (
+				<DeleteMemberDialog
+					member={deleteMember}
+					open={true}
+					onOpenChange={(open) => {
+						if (!open) setDeleteMember(null);
+					}}
+				/>
+			)}
 		</Card>
 	);
 }
 
 interface MemberRowProps {
 	member: MemberData;
+	onEdit: (member: MemberData) => void;
+	onDelete: (member: MemberData) => void;
 }
 
-function MemberRow({ member }: MemberRowProps) {
-	const [editOpen, setEditOpen] = useState(false);
-	const [deleteOpen, setDeleteOpen] = useState(false);
-
+function MemberRow({ member, onEdit, onDelete }: MemberRowProps) {
 	return (
-		<>
-			<TableRow>
-				<TableCell className="font-medium">{member.fullName}</TableCell>
-				<TableCell>{member.phone}</TableCell>
-				<TableCell className="hidden md:table-cell">{member.address}</TableCell>
-				<TableCell className="hidden lg:table-cell">
-					{member.email || "-"}
-				</TableCell>
-				<TableCell className="hidden lg:table-cell">
-					{member.age ?? "-"}
-				</TableCell>
-				<TableCell className="hidden xl:table-cell">
-					{member.childrenCount ?? "-"}
-				</TableCell>
-				<TableCell className="text-right">
-					<div className="flex justify-end gap-1">
-						<Button
-							variant="ghost"
-							size="icon-xs"
-							onClick={() => setEditOpen(true)}
-							aria-label="Editar"
-						>
-							<PencilIcon className="size-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon-xs"
-							onClick={() => setDeleteOpen(true)}
-							aria-label="Eliminar"
-						>
-							<Trash2Icon className="size-4" />
-						</Button>
-					</div>
-				</TableCell>
-			</TableRow>
-
-			<EditMemberDialog
-				member={member}
-				open={editOpen}
-				onOpenChange={setEditOpen}
-			/>
-			<DeleteMemberDialog
-				member={member}
-				open={deleteOpen}
-				onOpenChange={setDeleteOpen}
-			/>
-		</>
+		<TableRow>
+			<TableCell className="font-medium">{member.fullName}</TableCell>
+			<TableCell>{member.phone}</TableCell>
+			<TableCell className="hidden md:table-cell">{member.address}</TableCell>
+			<TableCell className="hidden lg:table-cell">
+				{member.email || "-"}
+			</TableCell>
+			<TableCell className="hidden lg:table-cell">
+				{member.age ?? "-"}
+			</TableCell>
+			<TableCell className="hidden xl:table-cell">
+				{member.childrenCount ?? "-"}
+			</TableCell>
+			<TableCell className="text-right">
+				<div className="flex justify-end gap-1">
+					<Button
+						variant="ghost"
+						size="icon-xs"
+						onClick={() => onEdit(member)}
+						aria-label="Editar"
+					>
+						<PencilIcon className="size-4" />
+					</Button>
+					<Button
+						variant="ghost"
+						size="icon-xs"
+						onClick={() => onDelete(member)}
+						aria-label="Eliminar"
+					>
+						<Trash2Icon className="size-4" />
+					</Button>
+				</div>
+			</TableCell>
+		</TableRow>
 	);
 }
 

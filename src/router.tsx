@@ -37,7 +37,21 @@ export const getRouter = () => {
 		defaultPreload: "intent",
 		context: { queryClient, convexQueryClient },
 		scrollRestoration: true,
-		defaultErrorComponent: (err) => <p>{err.error.stack}</p>,
+		defaultErrorComponent: (err) => (
+			<div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 p-8">
+				<h1 className="text-2xl font-bold">Algo salió mal</h1>
+				<p className="text-muted-foreground text-center max-w-md">
+					Ocurrió un error inesperado. Intenta recargar la página.
+				</p>
+				{import.meta.env.DEV && (
+					<pre className="text-xs text-destructive-foreground bg-destructive/10 p-4 rounded-lg max-w-full overflow-auto">
+						{err.error.message}
+						{"\n"}
+						{err.error.stack}
+					</pre>
+				)}
+			</div>
+		),
 		defaultNotFoundComponent: () => <p>not found</p>,
 		Wrap: ({ children }) => (
 			<ConvexProvider client={convexQueryClient.convexClient}>

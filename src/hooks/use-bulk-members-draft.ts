@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 
 import {
 	clearDraft,
-	emptyMemberRow,
+	createEmptyMemberRow,
 	loadDraft,
 	type MemberFormData,
 	saveDraft,
@@ -36,9 +36,16 @@ export interface UseBulkMembersDraftReturn {
 export function useBulkMembersDraft(): UseBulkMembersDraftReturn {
 	// Load draft from localStorage on mount
 	const [initialMembers] = useState<MemberFormData[]>(() => {
-		if (typeof window === "undefined") return [emptyMemberRow];
+		if (typeof window === "undefined") return [createEmptyMemberRow()];
 		const draft = loadDraft();
-		return draft && draft.length > 0 ? draft : [emptyMemberRow];
+		if (draft && draft.length > 0) {
+			// Ensure loaded drafts have stable row IDs
+			return draft.map((m) => ({
+				...m,
+				_rowId: m._rowId ?? crypto.randomUUID(),
+			}));
+		}
+		return [createEmptyMemberRow()];
 	});
 
 	// Track which members have been saved (by index)
