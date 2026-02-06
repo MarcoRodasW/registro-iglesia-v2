@@ -17,13 +17,10 @@ export function useMemberMutations() {
 	const queryClient = useQueryClient();
 
 	const invalidateQueries = useCallback(async () => {
-		const listQueryKey = convexQuery(api.members.list, {
-			paginationOpts: { numItems: 25, cursor: null },
-			search: undefined,
-		}).queryKey;
 		const countQueryKey = convexQuery(api.members.count, {}).queryKey;
 		await Promise.all([
-			queryClient.invalidateQueries({ queryKey: listQueryKey }),
+			// Invalidate the infinite members list (matches all search variants)
+			queryClient.invalidateQueries({ queryKey: ["infiniteMembers"] }),
 			queryClient.invalidateQueries({ queryKey: countQueryKey }),
 		]);
 	}, [queryClient]);

@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { toastManager } from "@/components/ui/toast";
 import { useMemberMutations } from "@/hooks/use-member-mutations";
 
 // ============================================================================
@@ -38,16 +37,9 @@ export function DeleteMemberDialog({
 	const handleDelete = async () => {
 		try {
 			await deleteMember.mutateAsync({ id: member._id });
-			toastManager.add({
-				title: `${member.fullName} eliminado`,
-				type: "success",
-			});
 			onOpenChange(false);
 		} catch (error) {
-			toastManager.add({
-				title: "Error al eliminar el miembro",
-				type: "error",
-			});
+			// Toast is shown by useMemberMutations onError handler
 			console.error(error);
 		}
 	};

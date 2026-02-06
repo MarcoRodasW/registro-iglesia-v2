@@ -14,7 +14,6 @@ import {
 	DialogPanel,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { toastManager } from "@/components/ui/toast";
 import { useMemberMutations } from "@/hooks/use-member-mutations";
 import {
 	NumberFieldForm,
@@ -68,16 +67,9 @@ export function EditMemberDialog({
 					firstVisitDate: value.firstVisitDate,
 					notes: value.notes || undefined,
 				});
-				toastManager.add({
-					title: "Miembro actualizado",
-					type: "success",
-				});
 				onOpenChange(false);
 			} catch (error) {
-				toastManager.add({
-					title: "Error al actualizar el miembro",
-					type: "error",
-				});
+				// Toast is shown by useMemberMutations onError handler
 				console.error(error);
 			}
 		},

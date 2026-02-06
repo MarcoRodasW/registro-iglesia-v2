@@ -7,7 +7,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import type { PaginationResult } from "convex/server";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 
 export type MemberData = Doc<"members">;
@@ -38,11 +38,13 @@ export interface UseMembersListReturn {
 
 const PAGE_SIZE = 25;
 
+/**
+ * Returns a query key scoped to the infinite query for the members list.
+ * Uses a distinct prefix ("infiniteMembers") so it doesn't collide with
+ * Convex's reactive subscription system which manages "convexQuery" keys.
+ */
 export function getMembersListQueryKey(search?: string): QueryKey {
-	return convexQuery(api.members.list, {
-		paginationOpts: { numItems: PAGE_SIZE, cursor: null },
-		search: search || undefined,
-	}).queryKey;
+	return ["infiniteMembers", { search: search || undefined }];
 }
 
 export function useMembersList(): UseMembersListReturn {
@@ -58,7 +60,10 @@ export function useMembersList(): UseMembersListReturn {
 		return () => clearTimeout(timer);
 	}, [search]);
 
-	const queryKey = getMembersListQueryKey(debouncedSearch);
+	const queryKey = useMemo(
+		() => getMembersListQueryKey(debouncedSearch),
+		[debouncedSearch],
+	);
 	const {
 		data,
 		fetchNextPage,
@@ -67,7 +72,6 @@ export function useMembersList(): UseMembersListReturn {
 		isLoading,
 		isError,
 		error,
-		refetch,
 	} = useInfiniteQuery({
 		queryKey,
 		queryFn: async ({ pageParam }) => {
@@ -88,12 +92,6 @@ export function useMembersList(): UseMembersListReturn {
 		},
 		initialPageParam: null as string | null,
 	});
-
-	useEffect(() => {
-		if (debouncedSearch !== undefined) {
-			refetch();
-		}
-	}, [debouncedSearch, refetch]);
 
 	const pages = data?.pages ?? [];
 	const allMembers: MemberData[] = pages.flatMap((page) => page?.page ?? []);
