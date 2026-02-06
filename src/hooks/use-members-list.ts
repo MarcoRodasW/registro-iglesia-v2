@@ -21,28 +21,18 @@ export interface UseMembersListReturn {
 	hasNextPage: boolean;
 	fetchNextPage: () => void;
 	error: Error | null;
-	// Search functionality
 	search: string;
 	setSearch: (value: string) => void;
 	debouncedSearch: string;
-	// UI state
 	showJumpToTop: boolean;
 	handleJumpToTop: () => void;
-	// Ref for intersection observer
 	loadMoreRef: (node?: Element | null) => void;
-	// Total counts
 	totalLoaded: number;
-	// Query key for invalidation
 	queryKey: QueryKey;
 }
 
 const PAGE_SIZE = 25;
 
-/**
- * Returns a query key scoped to the infinite query for the members list.
- * Uses a distinct prefix ("infiniteMembers") so it doesn't collide with
- * Convex's reactive subscription system which manages "convexQuery" keys.
- */
 export function getMembersListQueryKey(search?: string): QueryKey {
 	return ["infiniteMembers", { search: search || undefined }];
 }

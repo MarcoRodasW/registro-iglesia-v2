@@ -24,10 +24,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea, type TextareaProps } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 interface BaseFieldProps {
 	label?: ReactNode;
 	description?: ReactNode;
@@ -82,13 +78,6 @@ interface SubmitButtonProps
 	submittingText?: string;
 }
 
-// ============================================================================
-// Utility Components
-// ============================================================================
-
-/**
- * Displays field validation errors from TanStack Form
- */
 function FieldErrors({ field }: { field: AnyFieldApi }) {
 	const errors = field.state.meta.errors;
 	const isTouched = field.state.meta.isTouched;
@@ -122,9 +111,6 @@ function FieldErrors({ field }: { field: AnyFieldApi }) {
 	);
 }
 
-/**
- * Shows a validating indicator when async validation is running
- */
 function FieldValidating({ field }: { field: AnyFieldApi }) {
 	if (!field.state.meta.isValidating) return null;
 
@@ -135,28 +121,6 @@ function FieldValidating({ field }: { field: AnyFieldApi }) {
 	);
 }
 
-// ============================================================================
-// Form Field Components
-// ============================================================================
-
-/**
- * Text input field integrated with TanStack Form and coss-ui
- *
- * @example
- * ```tsx
- * <form.Field
- *   name="email"
- *   children={(field) => (
- *     <TextField
- *       field={field}
- *       label="Email"
- *       description="We'll never share your email"
- *       inputProps={{ type: "email", placeholder: "you@example.com" }}
- *     />
- *   )}
- * />
- * ```
- */
 function TextField({
 	field,
 	label,
@@ -186,24 +150,6 @@ function TextField({
 	);
 }
 
-/**
- * Textarea field integrated with TanStack Form and coss-ui
- *
- * @example
- * ```tsx
- * <form.Field
- *   name="bio"
- *   children={(field) => (
- *     <TextareaField
- *       field={field}
- *       label="Biography"
- *       description="Tell us about yourself"
- *       textareaProps={{ placeholder: "Write something..." }}
- *     />
- *   )}
- * />
- * ```
- */
 function TextareaField({
 	field,
 	label,
@@ -233,28 +179,6 @@ function TextareaField({
 	);
 }
 
-/**
- * Select field integrated with TanStack Form and coss-ui
- *
- * @example
- * ```tsx
- * <form.Field
- *   name="country"
- *   children={(field) => (
- *     <SelectField
- *       field={field}
- *       label="Country"
- *       placeholder="Select a country"
- *       options={[
- *         { value: "us", label: "United States" },
- *         { value: "ca", label: "Canada" },
- *         { value: "mx", label: "Mexico" },
- *       ]}
- *     />
- *   )}
- * />
- * ```
- */
 function SelectField({
 	field,
 	label,
@@ -298,23 +222,6 @@ function SelectField({
 	);
 }
 
-/**
- * Checkbox field integrated with TanStack Form and coss-ui
- *
- * @example
- * ```tsx
- * <form.Field
- *   name="acceptTerms"
- *   children={(field) => (
- *     <CheckboxField
- *       field={field}
- *       label="I accept the terms and conditions"
- *       description="You must accept to continue"
- *     />
- *   )}
- * />
- * ```
- */
 function CheckboxField({
 	field,
 	label,
@@ -349,25 +256,6 @@ function CheckboxField({
 	);
 }
 
-/**
- * Number field integrated with TanStack Form and coss-ui
- * Includes increment/decrement buttons
- *
- * @example
- * ```tsx
- * <form.Field
- *   name="age"
- *   children={(field) => (
- *     <NumberFieldForm
- *       field={field}
- *       label="Age"
- *       min={0}
- *       max={120}
- *     />
- *   )}
- * />
- * ```
- */
 function NumberFieldForm({
 	field,
 	label,
@@ -408,25 +296,6 @@ function NumberFieldForm({
 	);
 }
 
-/**
- * Submit button that integrates with TanStack Form state
- * Shows a spinner and disables when submitting or form is invalid
- *
- * @example
- * ```tsx
- * <form.Subscribe
- *   selector={(state) => ({
- *     canSubmit: state.canSubmit,
- *     isSubmitting: state.isSubmitting,
- *   })}
- *   children={({ canSubmit, isSubmitting }) => (
- *     <SubmitButton canSubmit={canSubmit} isSubmitting={isSubmitting}>
- *       Save Member
- *     </SubmitButton>
- *   )}
- * />
- * ```
- */
 function SubmitButton({
 	isSubmitting,
 	canSubmit,
@@ -448,10 +317,6 @@ function SubmitButton({
 	);
 }
 
-// ============================================================================
-// Form Submit Button Helper
-// ============================================================================
-
 interface FormSubmitProps {
 	canSubmit: boolean;
 	isSubmitting: boolean;
@@ -459,27 +324,6 @@ interface FormSubmitProps {
 	submittingText?: string;
 }
 
-/**
- * Helper component for rendering form submit state
- * Use with form.Subscribe to get canSubmit and isSubmitting state
- *
- * @example
- * ```tsx
- * <form.Subscribe
- *   selector={(state) => ({
- *     canSubmit: state.canSubmit,
- *     isSubmitting: state.isSubmitting,
- *   })}
- *   children={({ canSubmit, isSubmitting }) => (
- *     <Button type="submit" disabled={!canSubmit}>
- *       <FormSubmitText canSubmit={canSubmit} isSubmitting={isSubmitting}>
- *         Save
- *       </FormSubmitText>
- *     </Button>
- *   )}
- * />
- * ```
- */
 function FormSubmitText({
 	isSubmitting,
 	children = "Submit",

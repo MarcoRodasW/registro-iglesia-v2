@@ -3,10 +3,8 @@ import { v } from "convex/values";
 import { authedMutation, authedQuery } from "./utils";
 import { memberFieldsValidator } from "./memberTypes";
 
-// Extract fields from the shared validator for use in mutations
 const memberFields = memberFieldsValidator.fields;
 
-// Query: Lista paginada de miembros con filtro por nombre usando paginación nativa de Convex
 export const list = authedQuery({
 	args: {
 		paginationOpts: paginationOptsValidator,
@@ -15,11 +13,8 @@ export const list = authedQuery({
 	handler: async (ctx, args) => {
 		const { paginationOpts, search } = args;
 
-		// Get all members ordered by creation time (newest first)
-		// Note: For large datasets, consider using an index
 		const allMembers = await ctx.db.query("members").order("desc").collect();
 
-		// Filter by search term if provided (case-insensitive)
 		let filteredMembers = allMembers;
 		if (search && search.trim() !== "") {
 			const searchLower = search.toLowerCase();
@@ -28,7 +23,6 @@ export const list = authedQuery({
 			);
 		}
 
-		// Manual cursor-based pagination
 		const cursor = paginationOpts.cursor;
 		let startIndex = 0;
 
@@ -56,7 +50,6 @@ export const list = authedQuery({
 	},
 });
 
-// Query: Total de miembros
 export const count = authedQuery({
 	args: {},
 	handler: async (ctx) => {
@@ -65,7 +58,6 @@ export const count = authedQuery({
 	},
 });
 
-// Mutation: Crear un miembro
 export const createMember = authedMutation({
 	args: memberFields,
 	handler: async (ctx, args) => {
@@ -83,7 +75,6 @@ export const createMember = authedMutation({
 	},
 });
 
-// Mutation: Crear múltiples miembros (batch)
 export const createMembersBatch = authedMutation({
 	args: {
 		members: v.array(v.object(memberFields)),
@@ -107,7 +98,6 @@ export const createMembersBatch = authedMutation({
 	},
 });
 
-// Mutation: Actualizar un miembro
 export const updateMember = authedMutation({
 	args: {
 		id: v.id("members"),
@@ -136,7 +126,6 @@ export const updateMember = authedMutation({
 	},
 });
 
-// Mutation: Eliminar un miembro
 export const deleteMember = authedMutation({
 	args: {
 		id: v.id("members"),

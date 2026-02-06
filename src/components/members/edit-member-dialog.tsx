@@ -22,19 +22,11 @@ import {
 	TextField,
 } from "@/lib/form-fields";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 interface EditMemberDialogProps {
 	member: Doc<"members">;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }
-
-// ============================================================================
-// Edit Member Dialog Component
-// ============================================================================
 
 export function EditMemberDialog({
 	member,
@@ -69,13 +61,11 @@ export function EditMemberDialog({
 				});
 				onOpenChange(false);
 			} catch (error) {
-				// Toast is shown by useMemberMutations onError handler
 				console.error(error);
 			}
 		},
 	});
 
-	// Reset form values when dialog opens or member changes
 	useEffect(() => {
 		if (open) {
 			form.reset({

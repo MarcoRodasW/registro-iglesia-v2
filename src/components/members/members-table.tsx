@@ -51,7 +51,6 @@ export function MembersTable() {
 		totalLoaded,
 	} = useMembersList();
 
-	// Centralized modal state - only one dialog is mounted at a time
 	const [editMember, setEditMember] = useState<MemberData | null>(null);
 	const [deleteMember, setDeleteMember] = useState<MemberData | null>(null);
 
@@ -171,7 +170,6 @@ export function MembersTable() {
 				</Button>
 			)}
 
-			{/* Centralized dialogs - only one mounts at a time */}
 			{editMember && (
 				<EditMemberDialog
 					member={editMember}

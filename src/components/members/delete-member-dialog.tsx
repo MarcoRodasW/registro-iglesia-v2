@@ -13,19 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useMemberMutations } from "@/hooks/use-member-mutations";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 interface DeleteMemberDialogProps {
 	member: Doc<"members">;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }
-
-// ============================================================================
-// Delete Member Dialog Component
-// ============================================================================
 
 export function DeleteMemberDialog({
 	member,
@@ -39,7 +31,6 @@ export function DeleteMemberDialog({
 			await deleteMember.mutateAsync({ id: member._id });
 			onOpenChange(false);
 		} catch (error) {
-			// Toast is shown by useMemberMutations onError handler
 			console.error(error);
 		}
 	};
