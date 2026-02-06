@@ -13,7 +13,7 @@ export const getRouter = () => {
 		notifyManager.setScheduler(window.requestAnimationFrame);
 	}
 
-	const convexUrl = (import.meta as any).env.VITE_CONVEX_URL!;
+	const convexUrl = import.meta.env.VITE_CONVEX_URL;
 	if (!convexUrl) {
 		throw new Error("VITE_CONVEX_URL is not set");
 	}

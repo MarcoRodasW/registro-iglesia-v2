@@ -10,14 +10,7 @@ import type { PaginationResult } from "convex/server";
 import { useEffect, useState } from "react";
 import { useInView } from "react-intersection-observer";
 
-// ============================================================================
-// Types - Using Convex generated types
-// ============================================================================
-
-/** Member document type - inferred from Convex schema */
 export type MemberData = Doc<"members">;
-
-/** Pagination response type - using Convex's PaginationResult */
 export type MembersListResponse = PaginationResult<MemberData>;
 
 export interface UseMembersListReturn {
@@ -45,7 +38,6 @@ export interface UseMembersListReturn {
 
 const PAGE_SIZE = 25;
 
-/** Query key factory for members list queries */
 export function getMembersListQueryKey(search?: string): QueryKey {
 	return convexQuery(api.members.list, {
 		paginationOpts: { numItems: PAGE_SIZE, cursor: null },
@@ -53,17 +45,12 @@ export function getMembersListQueryKey(search?: string): QueryKey {
 	}).queryKey;
 }
 
-// ============================================================================
-// Hook
-// ============================================================================
-
 export function useMembersList(): UseMembersListReturn {
 	const [search, setSearch] = useState("");
 	const [debouncedSearch, setDebouncedSearch] = useState("");
 	const [showJumpToTop, setShowJumpToTop] = useState(false);
 	const queryClient = useQueryClient();
 
-	// Debounce search
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			setDebouncedSearch(search);
@@ -71,10 +58,7 @@ export function useMembersList(): UseMembersListReturn {
 		return () => clearTimeout(timer);
 	}, [search]);
 
-	// Build query key using convexQuery for consistency
 	const queryKey = getMembersListQueryKey(debouncedSearch);
-
-	// Infinite scroll query
 	const {
 		data,
 		fetchNextPage,
@@ -105,29 +89,21 @@ export function useMembersList(): UseMembersListReturn {
 		initialPageParam: null as string | null,
 	});
 
-	// Reset query when search changes
 	useEffect(() => {
 		if (debouncedSearch !== undefined) {
 			refetch();
 		}
 	}, [debouncedSearch, refetch]);
 
-	// Flatten all pages
 	const pages = data?.pages ?? [];
 	const allMembers: MemberData[] = pages.flatMap((page) => page?.page ?? []);
-
-	// Intersection observer for auto-loading
 	const { ref: loadMoreRef, inView } = useInView({
 		threshold: 0,
 		rootMargin: "100px",
 	});
 
-	// Since Convex paginated results don't include total count,
-	// we estimate based on current loaded count plus one more page if there's more
 	const totalLoaded = allMembers.length;
 	const totalCount = hasNextPage ? totalLoaded + PAGE_SIZE : totalLoaded;
-
-	// Auto-load first page when in view and search is empty
 	useEffect(() => {
 		if (
 			inView &&
@@ -147,7 +123,6 @@ export function useMembersList(): UseMembersListReturn {
 		fetchNextPage,
 	]);
 
-	// Track scroll position for Jump to Top button
 	useEffect(() => {
 		const handleScroll = () => {
 			setShowJumpToTop(window.scrollY > 300);

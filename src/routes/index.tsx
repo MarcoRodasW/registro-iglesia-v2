@@ -34,12 +34,9 @@ export const Route = createFileRoute("/")({
 function MembersPage() {
 	return (
 		<div className="min-h-screen flex flex-col">
-			{/* Navbar */}
 			<MembersNavbar />
 
-			{/* Main Content */}
 			<main className="flex-1 mx-auto w-full max-w-6xl px-4 py-6 sm:py-8 space-y-6">
-				{/* Header with action button */}
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<header>
 						<h1 className="text-2xl sm:text-3xl font-bold">
@@ -50,14 +47,11 @@ function MembersPage() {
 						</p>
 					</header>
 
-					{/* Add Members Button */}
 					<BulkAddMembersDialog />
 				</div>
 
-				{/* Stats Card */}
 				<StatsCard />
 
-				{/* Members Table */}
 				<MembersTable />
 			</main>
 		</div>

@@ -1,4 +1,4 @@
-import type { AnyFieldApi, AnyFormApi } from "@tanstack/react-form";
+import type { AnyFieldApi } from "@tanstack/react-form";
 import { useForm } from "@tanstack/react-form";
 import { CheckIcon, PlusIcon, SaveIcon, XIcon } from "lucide-react";
 import { useCallback, useId, useState } from "react";
@@ -57,7 +57,6 @@ export function BulkAddMembersDialog() {
 			onChange: membersArraySchema,
 		},
 		onSubmit: async ({ value }) => {
-			// Filter out empty rows and already saved members
 			const validMembers = value.members.filter(
 				(m, idx) => m.fullName.trim() !== "" && !savedIndices.has(idx),
 			);
@@ -88,13 +87,11 @@ export function BulkAddMembersDialog() {
 		},
 	});
 
-	// Save to localStorage when form values change
 	const handleFormChange = useCallback(() => {
 		const members = form.getFieldValue("members");
 		saveToDraft(members as MemberFormData[]);
 	}, [form, saveToDraft]);
 
-	// Guardar un miembro individualmente
 	const handleSaveSingle = useCallback(
 		async (index: number) => {
 			const member = form.getFieldValue(`members[${index}]`) as MemberFormData;
@@ -133,7 +130,6 @@ export function BulkAddMembersDialog() {
 		[form, createMember, markSaved, setSavingIndex],
 	);
 
-	// Resetear estado cuando se cierra el dialog
 	const handleOpenChange = useCallback(
 		(newOpen: boolean) => {
 			setOpen(newOpen);
@@ -177,8 +173,6 @@ export function BulkAddMembersDialog() {
 									{field.state.value.map((_, index) => (
 										<MemberRowForm
 											key={`member-row-${field.state.value[index]?.fullName || ""}-${index}`}
-											form={form}
-											index={index}
 											onRemove={() => {
 												field.removeValue(index);
 												handleFormChange();
@@ -187,7 +181,126 @@ export function BulkAddMembersDialog() {
 											isSaved={savedIndices.has(index)}
 											isSaving={isSaving(index)}
 											onSaveSingle={() => handleSaveSingle(index)}
-										/>
+										>
+											<form.Field
+												name={`members[${index}].fullName`}
+												validators={{
+													onChange: z.string().min(1, "El nombre es requerido"),
+												}}
+											>
+												{(field: AnyFieldApi) => (
+													<TextField
+														field={field}
+														label="Nombre completo *"
+														inputProps={{
+															placeholder: "Juan Pérez",
+															disabled: savedIndices.has(index),
+														}}
+													/>
+												)}
+											</form.Field>
+
+											<form.Field
+												name={`members[${index}].phone`}
+												validators={{
+													onChange: z
+														.string()
+														.min(1, "El teléfono es requerido"),
+												}}
+											>
+												{(field: AnyFieldApi) => (
+													<TextField
+														field={field}
+														label="Teléfono *"
+														inputProps={{
+															placeholder: "+52 555 123 4567",
+															type: "tel",
+															disabled: savedIndices.has(index),
+														}}
+													/>
+												)}
+											</form.Field>
+
+											<form.Field
+												name={`members[${index}].address`}
+												validators={{
+													onChange: z
+														.string()
+														.min(1, "La dirección es requerida"),
+												}}
+											>
+												{(field: AnyFieldApi) => (
+													<TextField
+														field={field}
+														label="Dirección *"
+														inputProps={{
+															placeholder: "Calle 123, Col. Centro",
+															disabled: savedIndices.has(index),
+														}}
+													/>
+												)}
+											</form.Field>
+
+											<form.Field
+												name={`members[${index}].email`}
+												validators={{
+													onChange: z
+														.string()
+														.email("Email inválido")
+														.optional()
+														.or(z.literal("")),
+												}}
+											>
+												{(field: AnyFieldApi) => (
+													<TextField
+														field={field}
+														label="Email"
+														inputProps={{
+															placeholder: "correo@ejemplo.com",
+															type: "email",
+															disabled: savedIndices.has(index),
+														}}
+													/>
+												)}
+											</form.Field>
+
+											<form.Field name={`members[${index}].age`}>
+												{(field: AnyFieldApi) => (
+													<NumberFieldForm
+														field={field}
+														label="Edad"
+														min={0}
+														max={120}
+														disabled={savedIndices.has(index)}
+													/>
+												)}
+											</form.Field>
+
+											<form.Field name={`members[${index}].childrenCount`}>
+												{(field: AnyFieldApi) => (
+													<NumberFieldForm
+														field={field}
+														label="Número de hijos"
+														min={0}
+														max={20}
+														disabled={savedIndices.has(index)}
+													/>
+												)}
+											</form.Field>
+
+											<form.Field name={`members[${index}].notes`}>
+												{(field: AnyFieldApi) => (
+													<TextareaField
+														field={field}
+														label="Notas"
+														textareaProps={{
+															placeholder: "Información adicional...",
+															disabled: savedIndices.has(index),
+														}}
+													/>
+												)}
+											</form.Field>
+										</MemberRowForm>
 									))}
 
 									<Button
@@ -236,8 +349,7 @@ export function BulkAddMembersDialog() {
 }
 
 interface MemberRowFormProps {
-	form: AnyFormApi;
-	index: number;
+	children: React.ReactNode;
 	onRemove: () => void;
 	canRemove: boolean;
 	isSaved: boolean;
@@ -246,8 +358,7 @@ interface MemberRowFormProps {
 }
 
 function MemberRowForm({
-	form,
-	index,
+	children,
 	onRemove,
 	canRemove,
 	isSaved,
@@ -307,119 +418,7 @@ function MemberRowForm({
 				</Button>
 			)}
 
-			<div className="grid gap-4 sm:grid-cols-2">
-				<form.Field
-					name={`members[${index}].fullName`}
-					validators={{
-						onChange: z.string().min(1, "El nombre es requerido"),
-					}}
-				>
-					{(field: AnyFieldApi) => (
-						<TextField
-							field={field}
-							label="Nombre completo *"
-							inputProps={{ placeholder: "Juan Pérez", disabled: isSaved }}
-						/>
-					)}
-				</form.Field>
-
-				<form.Field
-					name={`members[${index}].phone`}
-					validators={{
-						onChange: z.string().min(1, "El teléfono es requerido"),
-					}}
-				>
-					{(field: AnyFieldApi) => (
-						<TextField
-							field={field}
-							label="Teléfono *"
-							inputProps={{
-								placeholder: "+52 555 123 4567",
-								type: "tel",
-								disabled: isSaved,
-							}}
-						/>
-					)}
-				</form.Field>
-
-				<form.Field
-					name={`members[${index}].address`}
-					validators={{
-						onChange: z.string().min(1, "La dirección es requerida"),
-					}}
-				>
-					{(field: AnyFieldApi) => (
-						<TextField
-							field={field}
-							label="Dirección *"
-							inputProps={{
-								placeholder: "Calle 123, Col. Centro",
-								disabled: isSaved,
-							}}
-						/>
-					)}
-				</form.Field>
-
-				<form.Field
-					name={`members[${index}].email`}
-					validators={{
-						onChange: z
-							.string()
-							.email("Email inválido")
-							.optional()
-							.or(z.literal("")),
-					}}
-				>
-					{(field: AnyFieldApi) => (
-						<TextField
-							field={field}
-							label="Email"
-							inputProps={{
-								placeholder: "correo@ejemplo.com",
-								type: "email",
-								disabled: isSaved,
-							}}
-						/>
-					)}
-				</form.Field>
-
-				<form.Field name={`members[${index}].age`}>
-					{(field: AnyFieldApi) => (
-						<NumberFieldForm
-							field={field}
-							label="Edad"
-							min={0}
-							max={120}
-							disabled={isSaved}
-						/>
-					)}
-				</form.Field>
-
-				<form.Field name={`members[${index}].childrenCount`}>
-					{(field: AnyFieldApi) => (
-						<NumberFieldForm
-							field={field}
-							label="Número de hijos"
-							min={0}
-							max={20}
-							disabled={isSaved}
-						/>
-					)}
-				</form.Field>
-			</div>
-
-			<form.Field name={`members[${index}].notes`}>
-				{(field: AnyFieldApi) => (
-					<TextareaField
-						field={field}
-						label="Notas"
-						textareaProps={{
-							placeholder: "Información adicional...",
-							disabled: isSaved,
-						}}
-					/>
-				)}
-			</form.Field>
+			<div className="grid gap-4 sm:grid-cols-2">{children}</div>
 		</div>
 	);
 }
