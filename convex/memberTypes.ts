@@ -10,6 +10,7 @@ export const memberFieldsValidator = v.object({
 	childrenCount: v.optional(v.number()),
 	firstVisitDate: v.optional(v.number()),
 	notes: v.optional(v.string()),
+	invitedBy: v.optional(v.id("members")),
 });
 
 export type MemberFields = Infer<typeof memberFieldsValidator>;

@@ -4,8 +4,10 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import {
 	BulkAddMembersDialog,
+	GrowthRateCard,
 	MembersNavbar,
 	MembersTable,
+	NewMembersCard,
 	StatsCard,
 } from "@/components/members";
 
@@ -20,6 +22,15 @@ export const Route = createFileRoute("/")({
 		await Promise.all([
 			queryClient.ensureQueryData(convexQuery(api.auth.getCurrentUser, {})),
 			queryClient.ensureQueryData(convexQuery(api.members.count, {})),
+			queryClient.ensureQueryData(
+				convexQuery(api.members.countNewThisMonth, {}),
+			),
+			queryClient.ensureQueryData(
+				convexQuery(api.members.getGrowthRate, { period: "month" }),
+			),
+			queryClient.ensureQueryData(
+				convexQuery(api.members.getGrowthRate, { period: "week" }),
+			),
 			queryClient.ensureQueryData(
 				convexQuery(api.members.list, {
 					paginationOpts: { numItems: 25, cursor: null },
@@ -50,7 +61,11 @@ function MembersPage() {
 					<BulkAddMembersDialog />
 				</div>
 
-				<StatsCard />
+				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					<StatsCard />
+					<NewMembersCard />
+					<GrowthRateCard />
+				</div>
 
 				<MembersTable />
 			</main>

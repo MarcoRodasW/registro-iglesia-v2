@@ -71,6 +71,11 @@ interface NumberFieldFormProps extends BaseFieldProps {
 	disabled?: boolean;
 }
 
+interface DateFieldProps extends BaseFieldProps {
+	field: AnyFieldApi;
+	disabled?: boolean;
+}
+
 interface SubmitButtonProps
 	extends Omit<ComponentProps<typeof Button>, "type" | "disabled"> {
 	isSubmitting: boolean;
@@ -296,6 +301,52 @@ function NumberFieldForm({
 	);
 }
 
+function DateField({
+	field,
+	label,
+	description,
+	className,
+	disabled,
+}: DateFieldProps) {
+	const hasError =
+		field.state.meta.isTouched && field.state.meta.errors.length > 0;
+
+	// Convert timestamp to YYYY-MM-DD format for input
+	const timestampToDateString = (timestamp: number | undefined): string => {
+		if (!timestamp) return "";
+		const date = new Date(timestamp);
+		return date.toISOString().split("T")[0];
+	};
+
+	// Convert YYYY-MM-DD string to timestamp
+	const dateStringToTimestamp = (dateString: string): number | undefined => {
+		if (!dateString) return undefined;
+		return new Date(dateString).getTime();
+	};
+
+	return (
+		<Field className={className}>
+			{label && <FieldLabel htmlFor={field.name}>{label}</FieldLabel>}
+			<Input
+				id={field.name}
+				name={field.name}
+				type="date"
+				value={timestampToDateString(field.state.value)}
+				onChange={(e) => {
+					const timestamp = dateStringToTimestamp(e.target.value);
+					field.handleChange(timestamp);
+				}}
+				onBlur={field.handleBlur}
+				aria-invalid={hasError || undefined}
+				disabled={disabled}
+			/>
+			{description && <FieldDescription>{description}</FieldDescription>}
+			<FieldValidating field={field} />
+			<FieldErrors field={field} />
+		</Field>
+	);
+}
+
 function SubmitButton({
 	isSubmitting,
 	canSubmit,
@@ -333,21 +384,23 @@ function FormSubmitText({
 }
 
 export {
-	TextField,
-	TextareaField,
-	SelectField,
 	CheckboxField,
-	NumberFieldForm,
-	SubmitButton,
+	DateField,
 	FieldErrors,
 	FieldValidating,
 	FormSubmitText,
-	type TextFieldProps,
-	type TextareaFieldProps,
-	type SelectFieldProps,
+	NumberFieldForm,
+	SelectField,
+	SubmitButton,
+	TextareaField,
+	TextField,
 	type CheckboxFieldProps,
-	type NumberFieldFormProps,
-	type SubmitButtonProps,
-	type SelectOption,
+	type DateFieldProps,
 	type FormSubmitProps,
+	type NumberFieldFormProps,
+	type SelectFieldProps,
+	type SelectOption,
+	type SubmitButtonProps,
+	type TextareaFieldProps,
+	type TextFieldProps,
 };
