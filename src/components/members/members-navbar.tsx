@@ -1,10 +1,12 @@
 import { api } from "@convex/api";
 import { convexQuery } from "@convex-dev/react-query";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { LogOutIcon } from "lucide-react";
+import { LogOutIcon, ShieldIcon } from "lucide-react";
+import { Suspense } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
 	Menu,
 	MenuItem,
@@ -26,20 +28,6 @@ function getInitials(name: string): string {
 }
 
 export function MembersNavbar() {
-	const navigate = useNavigate();
-	const { data: user, isLoading } = useQuery(
-		convexQuery(api.auth.getCurrentUser, {}),
-	);
-
-	const handleSignOut = async () => {
-		await authClient.signOut();
-		navigate({ to: "/login" });
-	};
-
-	const userName = user?.name ?? "Usuario";
-	const userEmail = user?.email ?? "";
-	const userImage = user?.image;
-
 	return (
 		<nav className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
 			<div className="mx-auto max-w-6xl container px-4">
@@ -62,39 +50,73 @@ export function MembersNavbar() {
 						</div>
 					</div>
 
-					{isLoading ? (
-						<div className="flex items-center gap-2">
-							<Skeleton className="size-8 rounded-full" />
-							<Skeleton className="h-4 w-24 hidden sm:block" />
-						</div>
-					) : (
-						<Menu>
-							<MenuTrigger className="flex items-center gap-2 rounded-full p-1 pr-2 hover:bg-accent transition-colors cursor-pointer">
-								<Avatar className="size-8">
-									{userImage && <AvatarImage src={userImage} alt={userName} />}
-									<AvatarFallback>{getInitials(userName)}</AvatarFallback>
-								</Avatar>
-								<span className="text-sm font-medium hidden sm:block">
-									{userName}
-								</span>
-							</MenuTrigger>
-							<MenuPopup align="end" sideOffset={8}>
-								<div className="px-2 py-1.5">
-									<p className="text-sm font-medium">{userName}</p>
-									{userEmail && (
-										<p className="text-xs text-muted-foreground">{userEmail}</p>
-									)}
-								</div>
-								<MenuSeparator />
-								<MenuItem onClick={handleSignOut} variant="destructive">
-									<LogOutIcon className="size-4" />
-									Cerrar sesión
-								</MenuItem>
-							</MenuPopup>
-						</Menu>
-					)}
+					<Suspense fallback={<UserMenuSkeleton />}>
+						<UserMenu />
+					</Suspense>
 				</div>
 			</div>
 		</nav>
+	);
+}
+
+/** Suspense-driven user menu — must be wrapped in <Suspense> by the parent. */
+export function UserMenu() {
+	const navigate = useNavigate();
+	const { data: user } = useSuspenseQuery(
+		convexQuery(api.users.getCurrentUserWithRole, {}),
+	);
+
+	const handleSignOut = async () => {
+		await authClient.signOut();
+		navigate({ to: "/login" });
+	};
+
+	const userName = user?.name ?? "Usuario";
+	const userEmail = user?.email ?? "";
+	const userImage = user?.image;
+	const isAdmin = user?.role === "admin";
+
+	return (
+		<Menu>
+			<MenuTrigger className="flex items-center gap-2 rounded-full p-1 pr-2 hover:bg-accent transition-colors cursor-pointer">
+				<Avatar className="size-8">
+					{userImage && <AvatarImage src={userImage} alt={userName} />}
+					<AvatarFallback>{getInitials(userName)}</AvatarFallback>
+				</Avatar>
+				<span className="text-sm font-medium hidden sm:block">{userName}</span>
+				{isAdmin && (
+					<ShieldIcon className="size-3.5 text-amber-500 hidden sm:block" />
+				)}
+			</MenuTrigger>
+			<MenuPopup align="end" sideOffset={8}>
+				<div className="px-2 py-1.5">
+					<div className="flex items-center gap-2">
+						<p className="text-sm font-medium">{userName}</p>
+						{isAdmin && (
+							<Badge variant="warning" size="sm">
+								Admin
+							</Badge>
+						)}
+					</div>
+					{userEmail && (
+						<p className="text-xs text-muted-foreground">{userEmail}</p>
+					)}
+				</div>
+				<MenuSeparator />
+				<MenuItem onClick={handleSignOut} variant="destructive">
+					<LogOutIcon className="size-4" />
+					Cerrar sesión
+				</MenuItem>
+			</MenuPopup>
+		</Menu>
+	);
+}
+
+export function UserMenuSkeleton() {
+	return (
+		<div className="flex items-center gap-2">
+			<Skeleton className="size-8 rounded-full" />
+			<Skeleton className="h-4 w-24 hidden sm:block" />
+		</div>
 	);
 }

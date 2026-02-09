@@ -1,23 +1,63 @@
 import { betterAuth } from "better-auth/minimal";
-import { createClient } from "@convex-dev/better-auth";
+import { createClient, type AuthFunctions } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import authConfig from "./auth.config";
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import { query } from "./_generated/server";
 import type { GenericCtx } from "@convex-dev/better-auth";
 import type { DataModel } from "./_generated/dataModel";
 
 const siteUrl = process.env.SITE_URL!;
 
-// The component client has methods needed for integrating Convex with Better Auth,
-// as well as helper methods for general use.
-export const authComponent = createClient<DataModel>(components.betterAuth);
+const authFunctions: AuthFunctions = internal.auth;
+
+export const authComponent = createClient<DataModel>(components.betterAuth, {
+	authFunctions,
+	triggers: {
+		user: {
+			onCreate: async (ctx, doc) => {
+				const existingUsers = await ctx.db.query("users").first();
+				const role = existingUsers === null ? "admin" : "user";
+				await ctx.db.insert("users", {
+					name: doc.name,
+					email: doc.email,
+					authId: doc._id,
+					role,
+				});
+			},
+			onUpdate: async (ctx, newDoc, oldDoc) => {
+				if (newDoc.email !== oldDoc.email || newDoc.name !== oldDoc.name) {
+					const user = await ctx.db
+						.query("users")
+						.withIndex("by_authId", (q) => q.eq("authId", newDoc._id))
+						.unique();
+					if (user) {
+						await ctx.db.patch(user._id, {
+							email: newDoc.email,
+							name: newDoc.name,
+						});
+					}
+				}
+			},
+			onDelete: async (ctx, doc) => {
+				const user = await ctx.db
+					.query("users")
+					.withIndex("by_authId", (q) => q.eq("authId", doc._id))
+					.unique();
+				if (user) {
+					await ctx.db.delete(user._id);
+				}
+			},
+		},
+	},
+});
+
+export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
 	return betterAuth({
 		baseURL: siteUrl,
 		database: authComponent.adapter(ctx),
-		// Configure simple, non-verified email/password to get started
 		emailAndPassword: {
 			enabled: true,
 			minPasswordLength: 5,
@@ -30,17 +70,14 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
 			},
 		},
 		plugins: [
-			// The Convex plugin is required for Convex compatibility
 			convex({ authConfig }),
 		],
 	});
 };
 
-// Example function for getting the current user
-// Feel free to edit, omit, etc.
 export const getCurrentUser = query({
-  args: {},
-  handler: async (ctx) => {
-    return await authComponent.getAuthUser(ctx);
-  },
+	args: {},
+	handler: async (ctx) => {
+		return await authComponent.getAuthUser(ctx);
+	},
 });

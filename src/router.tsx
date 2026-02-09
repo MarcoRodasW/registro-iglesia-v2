@@ -25,6 +25,9 @@ export const getRouter = () => {
 			queries: {
 				queryKeyHashFn: convexQueryClient.hashFn(),
 				queryFn: convexQueryClient.queryFn(),
+				// Convex manages real-time updates via subscriptions,
+				// so cached data is always fresh — never refetch on mount/window focus.
+				staleTime: Number.POSITIVE_INFINITY,
 			},
 		},
 	});

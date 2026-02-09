@@ -15,4 +15,12 @@ export default defineSchema({
 	})
 		.index("by_phone", ["phone"])
 		.index("by_email", ["email"]),
+	users: defineTable({
+		name: v.string(),
+		email: v.string(),
+		authId: v.string(),
+		role: v.union(v.literal("admin"), v.literal("user")),
+	})
+		.index("by_authId", ["authId"])
+		.index("by_email", ["email"]),
 });
