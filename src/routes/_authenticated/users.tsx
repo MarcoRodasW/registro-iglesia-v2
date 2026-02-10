@@ -5,13 +5,12 @@ import { Suspense } from "react";
 import { UsersSkeleton, UsersTable } from "@/components/users";
 
 export const Route = createFileRoute("/_authenticated/users")({
-	beforeLoad: ({ context }) => {
+	beforeLoad: async ({ context }) => {
 		const { queryClient } = context;
-		// Fast cache check — only redirect if we already know the role
-		const cached = queryClient.getQueryData<{ role: string }>(
-			convexQuery(api.users.getCurrentUserWithRole, {}).queryKey,
+		const user = await queryClient.ensureQueryData(
+			convexQuery(api.users.getCurrentUserWithRole, {}),
 		);
-		if (cached && cached.role !== "admin") {
+		if (user.role !== "admin") {
 			throw redirect({ to: "/members" });
 		}
 	},

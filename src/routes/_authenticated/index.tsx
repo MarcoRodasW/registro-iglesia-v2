@@ -13,13 +13,12 @@ import {
 } from "@/components/members";
 
 export const Route = createFileRoute("/_authenticated/")({
-	beforeLoad: ({ context }) => {
+	beforeLoad: async ({ context }) => {
 		const { queryClient } = context;
-		// Fast cache check — only redirect if we already know the role
-		const cached = queryClient.getQueryData<{ role: string }>(
-			convexQuery(api.users.getCurrentUserWithRole, {}).queryKey,
+		const user = await queryClient.ensureQueryData(
+			convexQuery(api.users.getCurrentUserWithRole, {}),
 		);
-		if (cached && cached.role !== "admin") {
+		if (user.role !== "admin") {
 			throw redirect({ to: "/members" });
 		}
 	},
@@ -37,26 +36,38 @@ export const Route = createFileRoute("/_authenticated/")({
 });
 
 function DashboardPage() {
+	const today = new Date();
+	const formattedDate = today.toLocaleDateString("es", {
+		day: "numeric",
+		month: "long",
+		year: "numeric",
+	});
+
 	return (
 		<div className="space-y-6">
-			<header>
-				<h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
-				<p className="text-muted-foreground mt-1 text-sm sm:text-base">
-					Resumen general de la iglesia
+			<header className="animate-fade-in">
+				<h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+					Dashboard
+				</h1>
+				<p className="text-muted-foreground mt-1 text-sm">
+					Resumen de tu iglesia &middot; {formattedDate}
 				</p>
 			</header>
 
-			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			{/* KPI summary cards */}
+			<div className="grid gap-4 sm:grid-cols-2">
 				<Suspense fallback={<StatsCardSkeleton />}>
 					<StatsCard />
 				</Suspense>
 				<Suspense fallback={<NewMembersCardSkeleton />}>
 					<NewMembersCard />
 				</Suspense>
-				<Suspense fallback={<GrowthRateCardSkeleton />}>
-					<GrowthRateCard />
-				</Suspense>
 			</div>
+
+			{/* Growth chart — full width */}
+			<Suspense fallback={<GrowthRateCardSkeleton />}>
+				<GrowthRateCard />
+			</Suspense>
 		</div>
 	);
 }
