@@ -1,20 +1,19 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-
-import { AuthCard } from "@/components/auth-card";
+import { AuthCard } from "@/components/login/auth-card";
 
 export const Route = createFileRoute("/login")({
-	component: LoginPage,
-	beforeLoad: ({ context }) => {
-		if (context.isAuthenticated) {
-			throw redirect({ to: "/" });
-		}
-	},
+  component: LoginPage,
+  beforeLoad: ({ context }) => {
+    if (context.isAuthenticated) {
+      throw redirect({ to: "/" });
+    }
+  },
 });
 
 function LoginPage() {
-	return (
-		<div className="flex min-h-screen items-center justify-center bg-linear-to-b from-slate-900 via-slate-800 to-slate-900 p-4">
-			<AuthCard />
-		</div>
-	);
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-slate-900 via-slate-800 to-slate-900 p-4">
+      <AuthCard />
+    </div>
+  );
 }
