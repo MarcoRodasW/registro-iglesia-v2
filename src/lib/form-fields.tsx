@@ -83,6 +83,17 @@ interface SubmitButtonProps
 	submittingText?: string;
 }
 
+function RequiredLabel({ children }: { children: ReactNode }) {
+	if (typeof children !== "string") return <>{children}</>;
+	if (!children.endsWith(" *")) return <>{children}</>;
+	const text = children.slice(0, -2);
+	return (
+		<>
+			{text} <span className="text-red-500">*</span>
+		</>
+	);
+}
+
 function FieldErrors({ field }: { field: AnyFieldApi }) {
 	const errors = field.state.meta.errors;
 	const isTouched = field.state.meta.isTouched;
@@ -138,7 +149,11 @@ function TextField({
 
 	return (
 		<Field className={className}>
-			{label && <FieldLabel htmlFor={field.name}>{label}</FieldLabel>}
+			{label && (
+				<FieldLabel htmlFor={field.name}>
+					<RequiredLabel>{label}</RequiredLabel>
+				</FieldLabel>
+			)}
 			<Input
 				id={field.name}
 				name={field.name}
@@ -166,8 +181,12 @@ function TextareaField({
 		field.state.meta.isTouched && field.state.meta.errors.length > 0;
 
 	return (
-		<Field className={className}>
-			{label && <FieldLabel htmlFor={field.name}>{label}</FieldLabel>}
+		<Field className={cn("sm:col-span-2", className)}>
+			{label && (
+				<FieldLabel htmlFor={field.name}>
+					<RequiredLabel>{label}</RequiredLabel>
+				</FieldLabel>
+			)}
 			<Textarea
 				id={field.name}
 				name={field.name}
@@ -197,7 +216,11 @@ function SelectField({
 
 	return (
 		<Field className={className}>
-			{label && <FieldLabel>{label}</FieldLabel>}
+			{label && (
+				<FieldLabel>
+					<RequiredLabel>{label}</RequiredLabel>
+				</FieldLabel>
+			)}
 			<Select
 				value={field.state.value ?? ""}
 				onValueChange={(value) => {
@@ -251,7 +274,7 @@ function CheckboxField({
 			<div className="flex flex-col gap-1">
 				{label && (
 					<FieldLabel htmlFor={field.name} className="cursor-pointer">
-						{label}
+						<RequiredLabel>{label}</RequiredLabel>
 					</FieldLabel>
 				)}
 				{description && <FieldDescription>{description}</FieldDescription>}
@@ -277,7 +300,11 @@ function NumberFieldForm({
 
 	return (
 		<Field className={className}>
-			{label && <FieldLabel htmlFor={field.name}>{label}</FieldLabel>}
+			{label && (
+				<FieldLabel htmlFor={field.name}>
+					<RequiredLabel>{label}</RequiredLabel>
+				</FieldLabel>
+			)}
 			<NumberField
 				id={field.name}
 				value={field.state.value ?? undefined}
@@ -326,7 +353,11 @@ function DateField({
 
 	return (
 		<Field className={className}>
-			{label && <FieldLabel htmlFor={field.name}>{label}</FieldLabel>}
+			{label && (
+				<FieldLabel htmlFor={field.name}>
+					<RequiredLabel>{label}</RequiredLabel>
+				</FieldLabel>
+			)}
 			<Input
 				id={field.name}
 				name={field.name}

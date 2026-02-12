@@ -1,6 +1,6 @@
 import {
 	ArrowUp,
-	PencilIcon,
+	EyeIcon,
 	SearchIcon,
 	Trash2Icon,
 	UsersIcon,
@@ -219,9 +219,9 @@ function MemberRow({ member, onEdit, onDelete }: MemberRowProps) {
 						variant="ghost"
 						size="icon-xs"
 						onClick={() => onEdit(member)}
-						aria-label="Editar"
+						aria-label="Ver"
 					>
-						<PencilIcon className="size-4" />
+						<EyeIcon className="size-4" />
 					</Button>
 					<Button
 						variant="ghost"

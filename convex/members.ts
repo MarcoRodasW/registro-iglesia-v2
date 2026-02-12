@@ -1,7 +1,9 @@
 import { paginationOptsValidator } from "convex/server";
+import type { PaginationResult } from "convex/server";
 import { v } from "convex/values";
 import { authedMutation, authedQuery } from "./utils";
 import { memberFieldsValidator } from "./memberTypes";
+import type { Doc } from "./_generated/dataModel";
 
 const memberFields = memberFieldsValidator.fields;
 
@@ -10,7 +12,7 @@ export const list = authedQuery({
 		paginationOpts: paginationOptsValidator,
 		search: v.optional(v.string()),
 	},
-	handler: async (ctx, args) => {
+	handler: async (ctx, args): Promise<PaginationResult<Doc<"members">>> => {
 		const { paginationOpts, search } = args;
 
 		const allMembers = await ctx.db.query("members").order("desc").collect();
@@ -39,8 +41,10 @@ export const list = authedQuery({
 		);
 		const isDone =
 			startIndex + paginationOpts.numItems >= filteredMembers.length;
-		const continueCursor =
-			pageMembers.length > 0 ? pageMembers[pageMembers.length - 1]._id : cursor;
+		const continueCursor: string =
+			pageMembers.length > 0
+				? pageMembers[pageMembers.length - 1]._id
+				: paginationOpts.cursor ?? "";
 
 		return {
 			page: pageMembers,
@@ -123,6 +127,15 @@ export const getGrowthRate = authedQuery({
 			currentCount,
 			previousCount,
 		};
+	},
+});
+
+export const getMemberById = authedQuery({
+	args: { id: v.id("members") },
+	handler: async (ctx, args) => {
+		const member = await ctx.db.get(args.id);
+		if (!member) return null;
+		return { id: member._id, fullName: member.fullName };
 	},
 });
 

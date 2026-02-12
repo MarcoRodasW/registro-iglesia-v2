@@ -1,5 +1,9 @@
-import type { Doc } from "@convex/dataModel";
+import { api } from "@convex/api";
+import type { Doc, Id } from "@convex/dataModel";
+import { convexQuery } from "@convex-dev/react-query";
+import type { AnyFieldApi } from "@tanstack/react-form";
 import { useForm } from "@tanstack/react-form";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { z } from "zod";
 
@@ -16,11 +20,13 @@ import {
 } from "@/components/ui/dialog";
 import { useMemberMutations } from "@/hooks/use-member-mutations";
 import {
+	DateField,
 	NumberFieldForm,
 	SubmitButton,
 	TextareaField,
 	TextField,
 } from "@/lib/form-fields";
+import { MemberSelectField } from "./member-select-field";
 
 interface EditMemberDialogProps {
 	member: Doc<"members">;
@@ -35,6 +41,14 @@ export function EditMemberDialog({
 }: EditMemberDialogProps) {
 	const { updateMember } = useMemberMutations();
 
+	const { data: inviter } = useQuery(
+		convexQuery(
+			api.members.getMemberById,
+			member.invitedBy ? { id: member.invitedBy as Id<"members"> } : "skip",
+		),
+	);
+	const inviterName = inviter?.fullName ?? "";
+
 	const form = useForm({
 		defaultValues: {
 			fullName: member.fullName,
@@ -44,6 +58,8 @@ export function EditMemberDialog({
 			age: member.age,
 			childrenCount: member.childrenCount,
 			firstVisitDate: member.firstVisitDate,
+			invitedBy: member.invitedBy as string | undefined,
+			invitedByName: inviterName,
 			notes: member.notes ?? "",
 		},
 		onSubmit: async ({ value }) => {
@@ -57,6 +73,9 @@ export function EditMemberDialog({
 					age: value.age,
 					childrenCount: value.childrenCount,
 					firstVisitDate: value.firstVisitDate,
+					invitedBy: (value.invitedBy || undefined) as
+						| Id<"members">
+						| undefined,
 					notes: value.notes || undefined,
 				});
 				onOpenChange(false);
@@ -76,10 +95,12 @@ export function EditMemberDialog({
 				age: member.age,
 				childrenCount: member.childrenCount,
 				firstVisitDate: member.firstVisitDate,
+				invitedBy: member.invitedBy as string | undefined,
+				invitedByName: inviterName,
 				notes: member.notes ?? "",
 			});
 		}
-	}, [open, member, form]);
+	}, [open, member, form, inviterName]);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -187,6 +208,27 @@ export function EditMemberDialog({
 								)}
 							</form.Field>
 						</div>
+
+						<form.Field name="firstVisitDate">
+							{(field) => (
+								<DateField field={field} label="Fecha de primera visita" />
+							)}
+						</form.Field>
+
+						<form.Field name="invitedBy">
+							{(invitedByField: AnyFieldApi) => (
+								<form.Field name="invitedByName">
+									{(invitedByNameField: AnyFieldApi) => (
+										<MemberSelectField
+											field={invitedByField}
+											nameField={invitedByNameField}
+											label="Invitado por"
+											excludeMemberId={member._id}
+										/>
+									)}
+								</form.Field>
+							)}
+						</form.Field>
 
 						<form.Field name="notes">
 							{(field) => (

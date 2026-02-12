@@ -5,104 +5,129 @@ import type { Id } from "@convex/dataModel";
 import { convexQuery } from "@convex-dev/react-query";
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
-	Select,
-	SelectItem,
-	SelectPopup,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+	Combobox,
+	ComboboxEmpty,
+	ComboboxInput,
+	ComboboxItem,
+	ComboboxList,
+	ComboboxPopup,
+} from "@/components/ui/combobox";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+
+interface MemberOption {
+	value: string;
+	label: string;
+}
 
 interface MemberSelectFieldProps {
 	field: AnyFieldApi;
+	nameField?: AnyFieldApi;
 	label?: string;
 	description?: string;
 	className?: string;
 	disabled?: boolean;
 	excludeMemberId?: string;
+	onSelect?: () => void;
 }
 
 export function MemberSelectField({
 	field,
+	nameField,
 	label = "Invitado por",
 	description,
 	className,
 	disabled,
 	excludeMemberId,
+	onSelect,
 }: MemberSelectFieldProps) {
-	const [search, setSearch] = useState("");
-	const [open, setOpen] = useState(false);
+	const initialName = (nameField?.state.value as string) ?? "";
+	const [inputValue, setInputValue] = useState(initialName);
+	const selectedLabelRef = useRef<string>(initialName);
 
 	const { data: members = [] } = useQuery(
 		convexQuery(api.members.searchMembers, {
-			search: search || undefined,
+			search: inputValue || undefined,
 			limit: 20,
 			excludeId: excludeMemberId as Id<"members"> | undefined,
 		}),
 	);
 
-	// Find selected member name
-	const selectedMember = members.find((m) => m.id === field.state.value);
+	const items: MemberOption[] = members.map((m) => ({
+		value: m.id,
+		label: m.fullName,
+	}));
 
-	const handleValueChange = (value: string) => {
-		field.handleChange(value || undefined);
-		field.handleBlur();
-		setOpen(false);
-	};
+	// Ensure the selected item is always in the items list, even if search filters it out
+	const fieldValue = field.state.value as string | undefined;
+	const selectedInList = fieldValue
+		? items.find((item) => item.value === fieldValue)
+		: undefined;
 
-	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setSearch(e.target.value);
-	};
+	const effectiveItems =
+		fieldValue && !selectedInList && selectedLabelRef.current
+			? [{ value: fieldValue, label: selectedLabelRef.current }, ...items]
+			: items;
+
+	const selectedItem = fieldValue
+		? (effectiveItems.find((item) => item.value === fieldValue) ?? null)
+		: null;
+
+	// Sync the label when the selected member is found in search results
+	// (handles case where draft had an ID but initial search didn't include the member)
+	const resolvedLabel = selectedInList?.label;
+	useEffect(() => {
+		if (resolvedLabel && !selectedLabelRef.current) {
+			selectedLabelRef.current = resolvedLabel;
+			setInputValue(resolvedLabel);
+			nameField?.handleChange(resolvedLabel);
+		}
+	}, [resolvedLabel, nameField]);
 
 	return (
 		<Field className={className}>
 			{label && <FieldLabel>{label}</FieldLabel>}
-			<Select
-				value={field.state.value || ""}
-				onValueChange={handleValueChange}
-				open={open}
-				onOpenChange={setOpen}
+			<Combobox
+				items={effectiveItems}
+				value={selectedItem}
+				onValueChange={(val) => {
+					field.handleChange(val?.value ?? undefined);
+					selectedLabelRef.current = val?.label ?? "";
+					nameField?.handleChange(val?.label ?? undefined);
+					field.handleBlur();
+					onSelect?.();
+				}}
+				inputValue={inputValue}
+				onInputValueChange={(value) => {
+					setInputValue(value);
+					if (value === "") {
+						field.handleChange(undefined);
+						nameField?.handleChange(undefined);
+						selectedLabelRef.current = "";
+						onSelect?.();
+					}
+				}}
+				isItemEqualToValue={(a, b) => a.value === b.value}
+				filter={null}
 			>
-				<SelectTrigger disabled={disabled}>
-					<SelectValue
-						placeholder="Selecciona un miembro"
-						className="text-left"
-					>
-						{selectedMember ? selectedMember.fullName : "Selecciona un miembro"}
-					</SelectValue>
-				</SelectTrigger>
-				<SelectPopup className="w-[300px] p-2">
-					<div className="mb-2">
-						<Input
-							placeholder="Buscar miembro..."
-							value={search}
-							onChange={handleSearchChange}
-							className="h-8 text-sm"
-							onClick={(e) => e.stopPropagation()}
-						/>
-					</div>
-					<div className="max-h-[200px] overflow-y-auto">
-						<SelectItem value="" className="text-muted-foreground">
-							-- Sin invitador --
-						</SelectItem>
-						{members.length === 0 ? (
-							<div className="px-2 py-3 text-sm text-muted-foreground text-center">
-								No se encontraron miembros
-							</div>
-						) : (
-							members.map((member) => (
-								<SelectItem key={member.id} value={member.id}>
-									{member.fullName}
-								</SelectItem>
-							))
+				<ComboboxInput
+					placeholder="Buscar miembro..."
+					disabled={disabled}
+					showClear
+				/>
+				<ComboboxPopup>
+					<ComboboxEmpty>No se encontraron miembros</ComboboxEmpty>
+					<ComboboxList>
+						{(item: MemberOption) => (
+							<ComboboxItem key={item.value} value={item}>
+								{item.label}
+							</ComboboxItem>
 						)}
-					</div>
-				</SelectPopup>
-			</Select>
+					</ComboboxList>
+				</ComboboxPopup>
+			</Combobox>
 			{description && <FieldDescription>{description}</FieldDescription>}
 			{field.state.meta.errors.length > 0 && field.state.meta.isTouched && (
 				<div className="text-destructive-foreground text-xs">

@@ -18,10 +18,8 @@ export const Route = createFileRoute("/_authenticated")({
 			throw redirect({ to: "/login" });
 		}
 	},
-	loader: ({ context }) => {
-		// Fire-and-forget: start fetching but don't block navigation.
-		// UserMenu uses useSuspenseQuery; Suspense shows skeleton until ready.
-		context.queryClient.prefetchQuery(
+	loader: async ({ context }) => {
+		await context.queryClient.ensureQueryData(
 			convexQuery(api.users.getCurrentUserWithRole, {}),
 		);
 	},

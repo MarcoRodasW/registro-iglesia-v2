@@ -14,6 +14,7 @@ export const memberSchema = z.object({
 	firstVisitDate: z.number().optional(),
 	notes: z.string(),
 	invitedBy: z.string().optional(),
+	invitedByName: z.string().optional(),
 });
 
 export const membersArraySchema = z.object({
@@ -35,6 +36,7 @@ export function createEmptyMemberRow(): MemberFormData {
 		firstVisitDate: undefined,
 		notes: "",
 		invitedBy: undefined,
+		invitedByName: undefined,
 	};
 }
 
@@ -50,6 +52,7 @@ export const emptyMemberRow: MemberFormData = {
 	firstVisitDate: undefined,
 	notes: "",
 	invitedBy: undefined,
+	invitedByName: undefined,
 };
 
 export const DRAFT_STORAGE_KEY = "members-draft";

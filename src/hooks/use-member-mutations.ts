@@ -19,7 +19,6 @@ export function useMemberMutations() {
 	const invalidateQueries = useCallback(async () => {
 		const countQueryKey = convexQuery(api.members.count, {}).queryKey;
 		await Promise.all([
-			queryClient.invalidateQueries({ queryKey: ["infiniteMembers"] }),
 			queryClient.invalidateQueries({ queryKey: countQueryKey }),
 		]);
 	}, [queryClient]);

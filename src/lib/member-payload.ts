@@ -1,3 +1,4 @@
+import type { Id } from "@convex/dataModel";
 import type { MemberFields } from "../../convex/memberTypes";
 import type { MemberFormData } from "./member-schema";
 
@@ -18,5 +19,6 @@ export function toMemberPayload(data: MemberFormData): MemberFields {
 		childrenCount: data.childrenCount,
 		firstVisitDate: data.firstVisitDate,
 		notes: data.notes?.trim() || undefined,
+		invitedBy: (data.invitedBy || undefined) as Id<"members"> | undefined,
 	};
 }

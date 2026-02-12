@@ -1,18 +1,10 @@
 import { api } from "@convex/api";
 import type { Doc } from "@convex/dataModel";
-import { convexQuery } from "@convex-dev/react-query";
-import {
-	type QueryKey,
-	useInfiniteQuery,
-	useQueryClient,
-} from "@tanstack/react-query";
-import type { PaginationResult } from "convex/server";
+import { usePaginatedQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 
 export type MemberData = Doc<"members">;
-export type MembersListResponse = PaginationResult<MemberData>;
-
 export interface UseMembersListReturn {
 	members: MemberData[];
 	totalCount: number;
@@ -28,20 +20,14 @@ export interface UseMembersListReturn {
 	handleJumpToTop: () => void;
 	loadMoreRef: (node?: Element | null) => void;
 	totalLoaded: number;
-	queryKey: QueryKey;
 }
 
 const PAGE_SIZE = 25;
-
-export function getMembersListQueryKey(search?: string): QueryKey {
-	return ["infiniteMembers", { search: search || undefined }];
-}
 
 export function useMembersList(): UseMembersListReturn {
 	const [search, setSearch] = useState("");
 	const [debouncedSearch, setDebouncedSearch] = useState("");
 	const [showJumpToTop, setShowJumpToTop] = useState(false);
-	const queryClient = useQueryClient();
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
@@ -50,41 +36,24 @@ export function useMembersList(): UseMembersListReturn {
 		return () => clearTimeout(timer);
 	}, [search]);
 
-	const queryKey = useMemo(
-		() => getMembersListQueryKey(debouncedSearch),
+	const queryArgs = useMemo(
+		() => ({ search: debouncedSearch || undefined }),
 		[debouncedSearch],
 	);
-	const {
-		data,
-		fetchNextPage,
-		hasNextPage,
-		isFetchingNextPage,
-		isLoading,
-		isError,
-		error,
-	} = useInfiniteQuery({
-		queryKey,
-		queryFn: async ({ pageParam }) => {
-			const result = await queryClient.fetchQuery(
-				convexQuery(api.members.list, {
-					paginationOpts: {
-						numItems: PAGE_SIZE,
-						cursor: pageParam as string | null,
-					},
-					search: debouncedSearch || undefined,
-				}),
-			);
-			return result as MembersListResponse;
-		},
-		getNextPageParam: (lastPage: MembersListResponse) => {
-			if (!lastPage || lastPage.isDone) return undefined;
-			return lastPage.continueCursor;
-		},
-		initialPageParam: null as string | null,
-	});
+	const { results, status, loadMore } = usePaginatedQuery(
+		api.members.list,
+		queryArgs,
+		{ initialNumItems: PAGE_SIZE },
+	);
 
-	const pages = data?.pages ?? [];
-	const allMembers: MemberData[] = pages.flatMap((page) => page?.page ?? []);
+	const isLoading = status === "LoadingFirstPage";
+	const isFetchingNextPage = status === "LoadingMore";
+	const hasNextPage = status === "CanLoadMore";
+	const fetchNextPage = () => {
+		loadMore(PAGE_SIZE);
+	};
+
+	const allMembers = results ?? [];
 	const { ref: loadMoreRef, inView } = useInView({
 		threshold: 0,
 		rootMargin: "100px",
@@ -130,7 +99,7 @@ export function useMembersList(): UseMembersListReturn {
 		isFetchingNextPage,
 		hasNextPage: hasNextPage ?? false,
 		fetchNextPage,
-		error: isError ? error : null,
+		error: null,
 		search,
 		setSearch,
 		debouncedSearch,
@@ -138,6 +107,5 @@ export function useMembersList(): UseMembersListReturn {
 		handleJumpToTop,
 		loadMoreRef,
 		totalLoaded,
-		queryKey,
 	};
 }

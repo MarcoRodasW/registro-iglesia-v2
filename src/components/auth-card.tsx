@@ -285,7 +285,7 @@ export function AuthCard() {
           <Separator className="flex-1" />
         </div>
 
-        {/*<Tabs defaultValue="sign-in">
+        <Tabs defaultValue="sign-in">
           <TabsList className="w-full">
             <TabsTab value="sign-in" className="flex-1">
               Sign in
@@ -300,7 +300,7 @@ export function AuthCard() {
           <TabsPanel value="sign-up" className="pt-4">
             <SignUpForm />
           </TabsPanel>
-        </Tabs>*/}
+        </Tabs>
       </CardContent>
     </Card>
   );

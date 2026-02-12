@@ -8,115 +8,115 @@ import { Suspense } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-	Menu,
-	MenuItem,
-	MenuPopup,
-	MenuSeparator,
-	MenuTrigger,
+  Menu,
+  MenuItem,
+  MenuPopup,
+  MenuSeparator,
+  MenuTrigger,
 } from "@/components/ui/menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authClient } from "@/lib/auth-client";
 
 function getInitials(name: string): string {
-	return name
-		.split(/\s+/)
-		.filter(Boolean)
-		.map((n) => n[0] ?? "")
-		.slice(0, 2)
-		.join("")
-		.toUpperCase();
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((n) => n[0] ?? "")
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 }
 
 export function MembersNavbar() {
-	return (
-		<nav className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-			<div className="mx-auto max-w-6xl container px-4">
-				<div className="flex h-14 items-center justify-between">
-					<div className="flex items-center gap-3">
-						<div className="rounded-lg bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 p-1 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50 hover:shadow-md transition-shadow">
-							<img
-								src="/church_logo.png"
-								alt="Iglesia Casa de David"
-								className="h-8 w-auto object-contain rounded"
-							/>
-						</div>
-						<div className="flex flex-col">
-							<span className="font-semibold text-lg leading-tight">
-								Registro
-							</span>
-							<span className="text-xs text-muted-foreground hidden sm:block">
-								Casa de David
-							</span>
-						</div>
-					</div>
+  return (
+    <nav className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+      <div className="mx-auto max-w-6xl container px-4">
+        <div className="flex h-14 items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 p-1 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50 hover:shadow-md transition-shadow">
+              <img
+                src="/church_logo.png"
+                alt="Iglesia Casa de David"
+                className="h-8 w-auto object-contain rounded"
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-semibold text-lg leading-tight">
+                Casa de David Puerto Cortés
+              </span>
+              <span className="text-xs text-muted-foreground hidden sm:block">
+                Registro para nuevos miembros
+              </span>
+            </div>
+          </div>
 
-					<Suspense fallback={<UserMenuSkeleton />}>
-						<UserMenu />
-					</Suspense>
-				</div>
-			</div>
-		</nav>
-	);
+          <Suspense fallback={<UserMenuSkeleton />}>
+            <UserMenu />
+          </Suspense>
+        </div>
+      </div>
+    </nav>
+  );
 }
 
 /** Suspense-driven user menu — must be wrapped in <Suspense> by the parent. */
 export function UserMenu() {
-	const navigate = useNavigate();
-	const { data: user } = useSuspenseQuery(
-		convexQuery(api.users.getCurrentUserWithRole, {}),
-	);
+  const navigate = useNavigate();
+  const { data: user } = useSuspenseQuery(
+    convexQuery(api.users.getCurrentUserWithRole, {}),
+  );
 
-	const handleSignOut = async () => {
-		await authClient.signOut();
-		navigate({ to: "/login" });
-	};
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    navigate({ to: "/login" });
+  };
 
-	const userName = user?.name ?? "Usuario";
-	const userEmail = user?.email ?? "";
-	const userImage = user?.image;
-	const isAdmin = user?.role === "admin";
+  const userName = user?.name ?? "Usuario";
+  const userEmail = user?.email ?? "";
+  const userImage = user?.image;
+  const isAdmin = user?.role === "admin";
 
-	return (
-		<Menu>
-			<MenuTrigger className="flex items-center gap-2 rounded-full p-1 pr-2 hover:bg-accent transition-colors cursor-pointer">
-				<Avatar className="size-8">
-					{userImage && <AvatarImage src={userImage} alt={userName} />}
-					<AvatarFallback>{getInitials(userName)}</AvatarFallback>
-				</Avatar>
-				<span className="text-sm font-medium hidden sm:block">{userName}</span>
-				{isAdmin && (
-					<ShieldIcon className="size-3.5 text-amber-500 hidden sm:block" />
-				)}
-			</MenuTrigger>
-			<MenuPopup align="end" sideOffset={8}>
-				<div className="px-2 py-1.5">
-					<div className="flex items-center gap-2">
-						<p className="text-sm font-medium">{userName}</p>
-						{isAdmin && (
-							<Badge variant="warning" size="sm">
-								Admin
-							</Badge>
-						)}
-					</div>
-					{userEmail && (
-						<p className="text-xs text-muted-foreground">{userEmail}</p>
-					)}
-				</div>
-				<MenuSeparator />
-				<MenuItem onClick={handleSignOut} variant="destructive">
-					<LogOutIcon className="size-4" />
-					Cerrar sesión
-				</MenuItem>
-			</MenuPopup>
-		</Menu>
-	);
+  return (
+    <Menu>
+      <MenuTrigger className="flex items-center gap-2 rounded-full p-1 pr-2 hover:bg-accent transition-colors cursor-pointer">
+        <Avatar className="size-8">
+          {userImage && <AvatarImage src={userImage} alt={userName} />}
+          <AvatarFallback>{getInitials(userName)}</AvatarFallback>
+        </Avatar>
+        <span className="text-sm font-medium hidden sm:block">{userName}</span>
+        {isAdmin && (
+          <ShieldIcon className="size-3.5 text-amber-500 hidden sm:block" />
+        )}
+      </MenuTrigger>
+      <MenuPopup align="end" sideOffset={8}>
+        <div className="px-2 py-1.5">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium">{userName}</p>
+            {isAdmin && (
+              <Badge variant="warning" size="sm">
+                Admin
+              </Badge>
+            )}
+          </div>
+          {userEmail && (
+            <p className="text-xs text-muted-foreground">{userEmail}</p>
+          )}
+        </div>
+        <MenuSeparator />
+        <MenuItem onClick={handleSignOut} variant="destructive">
+          <LogOutIcon className="size-4" />
+          Cerrar sesión
+        </MenuItem>
+      </MenuPopup>
+    </Menu>
+  );
 }
 
 export function UserMenuSkeleton() {
-	return (
-		<div className="flex items-center gap-2">
-			<Skeleton className="size-8 rounded-full" />
-			<Skeleton className="h-4 w-24 hidden sm:block" />
-		</div>
-	);
+  return (
+    <div className="flex items-center gap-2">
+      <Skeleton className="size-8 rounded-full" />
+      <Skeleton className="h-4 w-24 hidden sm:block" />
+    </div>
+  );
 }
