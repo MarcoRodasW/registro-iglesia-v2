@@ -33,7 +33,7 @@ export function MembersNavbar() {
       <div className="mx-auto max-w-6xl container px-4">
         <div className="flex h-14 items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 p-1 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50 hover:shadow-md transition-shadow">
+            <div className="rounded-lg bg-linear-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 p-1 shadow-sm ring-1 ring-slate-200/50 dark:ring-slate-700/50 hover:shadow-md transition-shadow">
               <img
                 src="/church_logo.png"
                 alt="Iglesia Casa de David"
@@ -59,7 +59,6 @@ export function MembersNavbar() {
   );
 }
 
-/** Suspense-driven user menu — must be wrapped in <Suspense> by the parent. */
 export function UserMenu() {
   const navigate = useNavigate();
   const { data: user } = useSuspenseQuery(

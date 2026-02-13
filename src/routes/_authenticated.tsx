@@ -1,6 +1,6 @@
 import { api } from "@convex/api";
 import { convexQuery } from "@convex-dev/react-query";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	Link,
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
-	const { data: currentUser } = useQuery(
+	const { data: currentUser } = useSuspenseQuery(
 		convexQuery(api.users.getCurrentUserWithRole, {}),
 	);
 	const isAdmin = currentUser?.role === "admin";

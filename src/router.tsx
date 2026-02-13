@@ -2,7 +2,6 @@ import { ConvexQueryClient } from "@convex-dev/react-query";
 import { notifyManager, QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
-import { ConvexProvider } from "convex/react";
 
 import { routeTree } from "./routeTree.gen";
 
@@ -25,8 +24,6 @@ export const getRouter = () => {
 			queries: {
 				queryKeyHashFn: convexQueryClient.hashFn(),
 				queryFn: convexQueryClient.queryFn(),
-				// Convex manages real-time updates via subscriptions,
-				// so cached data is always fresh — never refetch on mount/window focus.
 				staleTime: Number.POSITIVE_INFINITY,
 			},
 		},
@@ -54,11 +51,6 @@ export const getRouter = () => {
 			</div>
 		),
 		defaultNotFoundComponent: () => <p>not found</p>,
-		Wrap: ({ children }) => (
-			<ConvexProvider client={convexQueryClient.convexClient}>
-				{children}
-			</ConvexProvider>
-		),
 	});
 
 	setupRouterSsrQueryIntegration({
