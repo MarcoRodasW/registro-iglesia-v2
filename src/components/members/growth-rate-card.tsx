@@ -78,7 +78,7 @@ export function GrowthRateCard() {
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div className="flex items-center gap-3">
 						<div className="flex size-10 items-center justify-center rounded-xl bg-violet-100 ring-1 ring-violet-200/60 dark:bg-violet-950/40 dark:ring-violet-800/40">
-							<UsersIcon className="size-[18px] text-violet-600 dark:text-violet-400" />
+							<UsersIcon className="size-4.5 text-violet-600 dark:text-violet-400" />
 						</div>
 						<div>
 							<CardTitle className="text-base">Crecimiento Mensual</CardTitle>
@@ -162,7 +162,7 @@ export function GrowthRateCard() {
 											{/* Bar container with baseline — tooltip trigger */}
 											<TooltipTrigger
 												delay={0}
-												className="relative h-[100px] w-full cursor-default border-b border-border/40 sm:h-[140px]"
+												className="relative h-25 w-full cursor-default border-b border-border/40 sm:h-35"
 											>
 												<div
 													className={cn(
