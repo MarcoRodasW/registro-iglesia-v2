@@ -23,6 +23,7 @@ import { useMemberMutations } from "@/hooks/use-member-mutations";
 import {
 	DateField,
 	NumberFieldForm,
+	PhoneField,
 	SubmitButton,
 	TextareaField,
 	TextField,
@@ -207,16 +208,14 @@ export function BulkAddMembersDialog() {
 												validators={{
 													onChange: z
 														.string()
-														.min(1, "El teléfono es requerido"),
+														.min(8, "El teléfono debe tener 8 dígitos"),
 												}}
 											>
 												{(field: AnyFieldApi) => (
-													<TextField
+													<PhoneField
 														field={field}
 														label="Teléfono *"
 														inputProps={{
-															placeholder: "88224111",
-															type: "tel",
 															disabled: savedIndices.has(index),
 														}}
 													/>

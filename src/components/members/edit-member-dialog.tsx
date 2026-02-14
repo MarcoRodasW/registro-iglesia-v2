@@ -22,6 +22,7 @@ import { useMemberMutations } from "@/hooks/use-member-mutations";
 import {
 	DateField,
 	NumberFieldForm,
+	PhoneField,
 	SubmitButton,
 	TextareaField,
 	TextField,
@@ -137,19 +138,10 @@ export function EditMemberDialog({
 						<form.Field
 							name="phone"
 							validators={{
-								onChange: z.string().min(1, "El teléfono es requerido"),
+								onChange: z.string().min(8, "El teléfono debe tener 8 dígitos"),
 							}}
 						>
-							{(field) => (
-								<TextField
-									field={field}
-									label="Teléfono *"
-									inputProps={{
-										placeholder: "+52 555 123 4567",
-										type: "tel",
-									}}
-								/>
-							)}
+							{(field) => <PhoneField field={field} label="Teléfono *" />}
 						</form.Field>
 
 						<form.Field

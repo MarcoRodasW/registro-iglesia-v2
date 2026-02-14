@@ -32,6 +32,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { type MemberData, useMembersList } from "@/hooks/use-members-list";
+import { formatPhone } from "@/lib/utils";
 import { DeleteMemberDialog } from "./delete-member-dialog";
 import { EditMemberDialog } from "./edit-member-dialog";
 
@@ -202,7 +203,7 @@ function MemberRow({ member, onEdit, onDelete }: MemberRowProps) {
 	return (
 		<TableRow>
 			<TableCell className="font-medium">{member.fullName}</TableCell>
-			<TableCell>{member.phone}</TableCell>
+			<TableCell>{formatPhone(member.phone)}</TableCell>
 			<TableCell className="hidden md:table-cell">{member.address}</TableCell>
 			<TableCell className="hidden lg:table-cell">
 				{member.email || "-"}
