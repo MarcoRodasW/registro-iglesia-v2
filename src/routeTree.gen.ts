@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
+import { Route as AuthenticatedSectorsRouteImport } from './routes/_authenticated/sectors'
 import { Route as AuthenticatedMembersRouteImport } from './routes/_authenticated/members'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -35,6 +36,11 @@ const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSectorsRoute = AuthenticatedSectorsRouteImport.update({
+  id: '/sectors',
+  path: '/sectors',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedMembersRoute = AuthenticatedMembersRouteImport.update({
   id: '/members',
   path: '/members',
@@ -50,12 +56,14 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
   '/members': typeof AuthenticatedMembersRoute
+  '/sectors': typeof AuthenticatedSectorsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/members': typeof AuthenticatedMembersRoute
+  '/sectors': typeof AuthenticatedSectorsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/': typeof AuthenticatedIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -65,20 +73,22 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/members': typeof AuthenticatedMembersRoute
+  '/_authenticated/sectors': typeof AuthenticatedSectorsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/members' | '/users' | '/api/auth/$'
+  fullPaths: '/' | '/login' | '/members' | '/sectors' | '/users' | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/members' | '/users' | '/' | '/api/auth/$'
+  to: '/login' | '/members' | '/sectors' | '/users' | '/' | '/api/auth/$'
   id:
     | '__root__'
     | '/_authenticated'
     | '/login'
     | '/_authenticated/members'
+    | '/_authenticated/sectors'
     | '/_authenticated/users'
     | '/_authenticated/'
     | '/api/auth/$'
@@ -120,6 +130,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/sectors': {
+      id: '/_authenticated/sectors'
+      path: '/sectors'
+      fullPath: '/sectors'
+      preLoaderRoute: typeof AuthenticatedSectorsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/members': {
       id: '/_authenticated/members'
       path: '/members'
@@ -139,12 +156,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedMembersRoute: typeof AuthenticatedMembersRoute
+  AuthenticatedSectorsRoute: typeof AuthenticatedSectorsRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMembersRoute: AuthenticatedMembersRoute,
+  AuthenticatedSectorsRoute: AuthenticatedSectorsRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }

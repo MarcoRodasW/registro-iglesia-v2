@@ -331,3 +331,15 @@ export const getMemberGrowthTrend = authedQuery({
 		};
 	},
 });
+
+export const listMembersBySector = authedQuery({
+	args: {
+		sectorId: v.id("sectors"),
+	},
+	handler: async (ctx, args) => {
+		return await ctx.db
+			.query("members")
+			.withIndex("by_sector", (q) => q.eq("sectorId", args.sectorId))
+			.collect();
+	},
+});

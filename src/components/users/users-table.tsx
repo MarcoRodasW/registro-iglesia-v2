@@ -5,7 +5,7 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { ShieldIcon, UserIcon, UsersIcon } from "lucide-react";
+import { CrownIcon, ShieldIcon, UserIcon, UsersIcon } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -45,7 +45,7 @@ import {
 } from "@/components/ui/table";
 import { toastManager } from "@/components/ui/toast";
 
-type UserRole = "admin" | "user";
+type UserRole = "admin" | "leader" | "user";
 
 interface PendingRoleChange {
 	userId: string;
@@ -53,6 +53,12 @@ interface PendingRoleChange {
 	currentRole: UserRole;
 	newRole: UserRole;
 }
+
+const ROLE_LABELS = {
+	admin: "Admin",
+	leader: "Líder",
+	user: "Usuario",
+} as const;
 
 export function UsersTable() {
 	const queryClient = useQueryClient();
@@ -116,8 +122,7 @@ export function UsersTable() {
 		setPendingChange(null);
 	};
 
-	const roleLabel = (role: UserRole) =>
-		role === "admin" ? "Admin" : "Usuario";
+	const roleLabel = (role: UserRole) => ROLE_LABELS[role];
 
 	return (
 		<>
@@ -158,6 +163,8 @@ export function UsersTable() {
 													<div className="flex items-center gap-2">
 														{user.role === "admin" ? (
 															<ShieldIcon className="size-4 text-amber-500" />
+														) : user.role === "leader" ? (
+															<CrownIcon className="size-4 text-purple-500" />
 														) : (
 															<UserIcon className="size-4 text-muted-foreground" />
 														)}
@@ -173,7 +180,11 @@ export function UsersTable() {
 												<TableCell>
 													<Badge
 														variant={
-															user.role === "admin" ? "warning" : "secondary"
+															user.role === "admin"
+																? "warning"
+																: user.role === "leader"
+																	? "default"
+																	: "secondary"
 														}
 													>
 														{roleLabel(user.role)}
@@ -229,8 +240,14 @@ export function UsersTable() {
 											incluyendo la gestión de usuarios.
 										</span>
 									)}
+									{pendingChange.newRole === "leader" && (
+										<span className="block mt-2 text-purple-600 dark:text-purple-400">
+											Los líderes pueden gestionar miembros y realizar acciones
+											de moderación.
+										</span>
+									)}
 									{pendingChange.currentRole === "admin" &&
-										pendingChange.newRole === "user" && (
+										pendingChange.newRole !== "admin" && (
 											<span className="block mt-2 text-amber-600 dark:text-amber-400">
 												Este usuario perderá todos los permisos de
 												administrador.
@@ -275,8 +292,9 @@ function RoleSelect({
 				<SelectValue />
 			</SelectTrigger>
 			<SelectPopup>
-				<SelectItem value="admin">Admin</SelectItem>
-				<SelectItem value="user">Usuario</SelectItem>
+				<SelectItem value="admin">{ROLE_LABELS.admin}</SelectItem>
+				<SelectItem value="leader">{ROLE_LABELS.leader}</SelectItem>
+				<SelectItem value="user">{ROLE_LABELS.user}</SelectItem>
 			</SelectPopup>
 		</Select>
 	);

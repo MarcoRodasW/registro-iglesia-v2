@@ -7,7 +7,12 @@ import {
 	Outlet,
 	redirect,
 } from "@tanstack/react-router";
-import { BookUserIcon, LayoutDashboardIcon, UsersIcon } from "lucide-react";
+import {
+	BookUserIcon,
+	LayoutDashboardIcon,
+	MapPinIcon,
+	UsersIcon,
+} from "lucide-react";
 
 import { MembersNavbar } from "@/components/members";
 import { cn } from "@/lib/utils";
@@ -31,6 +36,8 @@ function AuthenticatedLayout() {
 		convexQuery(api.users.getCurrentUserWithRole, {}),
 	);
 	const isAdmin = currentUser?.role === "admin";
+	const isAdminOrLeader =
+		currentUser?.role === "admin" || currentUser?.role === "leader";
 
 	return (
 		<div className="min-h-screen flex flex-col">
@@ -47,6 +54,11 @@ function AuthenticatedLayout() {
 						<NavLink to="/members" icon={<BookUserIcon className="size-4" />}>
 							Miembros
 						</NavLink>
+						{isAdminOrLeader && (
+							<NavLink to="/sectors" icon={<MapPinIcon className="size-4" />}>
+								Sectores
+							</NavLink>
+						)}
 						{isAdmin && (
 							<NavLink to="/users" icon={<UsersIcon className="size-4" />}>
 								Usuarios

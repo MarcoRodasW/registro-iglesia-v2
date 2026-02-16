@@ -11,6 +11,7 @@ export const memberFieldsValidator = v.object({
 	firstVisitDate: v.optional(v.number()),
 	notes: v.optional(v.string()),
 	invitedBy: v.optional(v.id("members")),
+	sectorId: v.optional(v.id("sectors")),
 });
 
 export type MemberFields = Infer<typeof memberFieldsValidator>;

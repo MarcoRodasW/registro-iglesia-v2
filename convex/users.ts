@@ -26,7 +26,7 @@ export const listUsers = adminQuery({
 export const setUserRole = adminMutation({
 	args: {
 		userId: v.id("users"),
-		role: v.union(v.literal("admin"), v.literal("user")),
+		role: v.union(v.literal("admin"), v.literal("leader"), v.literal("user")),
 	},
 	handler: async (ctx, args) => {
 		const targetUser = await ctx.db.get(args.userId);

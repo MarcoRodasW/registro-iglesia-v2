@@ -32,7 +32,24 @@ const adminCtx = customCtx(async (ctx: GenericQueryCtx<DataModel>) => {
 	return { user: authUser, appUser };
 });
 
+const adminOrLeaderCtx = customCtx(async (ctx: GenericQueryCtx<DataModel>) => {
+	const authUser = await authComponent.getAuthUser(ctx);
+	if (!authUser) {
+		throw new Error("User must be authenticated");
+	}
+	const appUser = await ctx.db
+		.query("users")
+		.withIndex("by_authId", (q) => q.eq("authId", authUser._id))
+		.unique();
+	if (!appUser || (appUser.role !== "admin" && appUser.role !== "leader")) {
+		throw new Error("User must be an admin or leader");
+	}
+	return { user: authUser, appUser };
+});
+
 export const authedQuery = customQuery(query, authenticatedCtx);
 export const authedMutation = customMutation(mutation, authenticatedCtx);
 export const adminQuery = customQuery(query, adminCtx);
 export const adminMutation = customMutation(mutation, adminCtx);
+export const adminOrLeaderQuery = customQuery(query, adminOrLeaderCtx);
+export const adminOrLeaderMutation = customMutation(mutation, adminOrLeaderCtx);
