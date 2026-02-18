@@ -90,15 +90,15 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 		],
 	}),
 	beforeLoad: async (ctx) => {
-		const token = await getAuth();
-		if (token) {
-			ctx.context.convexQueryClient.serverHttpClient?.setAuth(token);
+		if (ctx.context.convexQueryClient.serverHttpClient) {
+			const token = await getAuth();
+			if (token) {
+				ctx.context.convexQueryClient.serverHttpClient.setAuth(token);
+			}
+			return { isAuthenticated: !!token, token };
 		}
 
-		return {
-			isAuthenticated: !!token,
-			token,
-		};
+		return {};
 	},
 	component: RootComponent,
 	shellComponent: RootDocument,

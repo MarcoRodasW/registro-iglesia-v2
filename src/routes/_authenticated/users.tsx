@@ -14,11 +14,6 @@ export const Route = createFileRoute("/_authenticated/users")({
 			throw redirect({ to: "/members" });
 		}
 	},
-	loader: ({ context }) => {
-		// Fire-and-forget prefetch — don't block navigation.
-		// UsersTable uses useSuspenseQuery; Suspense shows skeleton until ready.
-		context.queryClient.prefetchQuery(convexQuery(api.users.listUsers, {}));
-	},
 	component: UsersPage,
 });
 
