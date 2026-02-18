@@ -1,13 +1,21 @@
 import { api } from "@convex/api";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { CreateSectorDialog } from "@/components/sectors/create-sector-dialog";
 import { SectorsTable } from "@/components/sectors/sectors-table";
 
 export const Route = createFileRoute("/_authenticated/sectors")({
 	component: SectorsPage,
+	beforeLoad: async ({ context }) => {
+		const user = await context.queryClient.ensureQueryData(
+			convexQuery(api.users.getCurrentUserWithRole, {}),
+		);
+		if (user.role !== "admin" && user.role !== "leader") {
+			throw redirect({ to: "/members" });
+		}
+	},
 	loader: async ({ context }) => {
 		await context.queryClient.ensureQueryData(
 			convexQuery(api.sectors.listSectors, {}),
