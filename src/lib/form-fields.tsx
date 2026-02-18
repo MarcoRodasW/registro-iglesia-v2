@@ -2,9 +2,9 @@
 
 import type { AnyFieldApi } from "@tanstack/react-form";
 import type { ComponentProps, ReactNode } from "react";
-import type {
+import {
 	SectorSelectField,
-	SectorSelectFieldProps,
+	type SectorSelectFieldProps,
 } from "@/components/sectors/sector-select-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -479,7 +479,7 @@ export {
 	NumberFieldForm,
 	PhoneField,
 	SelectField,
-	type SectorSelectField,
+	SectorSelectField,
 	SubmitButton,
 	TextareaField,
 	TextField,

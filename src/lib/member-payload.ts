@@ -20,5 +20,6 @@ export function toMemberPayload(data: MemberFormData): MemberFields {
 		firstVisitDate: data.firstVisitDate,
 		notes: data.notes?.trim() || undefined,
 		invitedBy: (data.invitedBy || undefined) as Id<"members"> | undefined,
+		sectorId: (data.sectorId || undefined) as Id<"sectors"> | undefined,
 	};
 }

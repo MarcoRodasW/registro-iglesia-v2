@@ -8,6 +8,32 @@ export const listSectors = adminOrLeaderQuery({
 	},
 });
 
+export const getSector = adminOrLeaderQuery({
+	args: {
+		sectorId: v.id("sectors"),
+	},
+	handler: async (ctx, args) => {
+		const sector = await ctx.db.get(args.sectorId);
+		if (!sector) {
+			return null;
+		}
+
+		const members = await ctx.db
+			.query("members")
+			.withIndex("by_sector", (q) => q.eq("sectorId", args.sectorId))
+			.collect();
+		const memberCount = members.length;
+
+		const leaderCount = sector.leaderIds?.length ?? 0;
+
+		return {
+			...sector,
+			memberCount,
+			leaderCount,
+		};
+	},
+});
+
 export const createSector = adminOrLeaderMutation({
 	args: {
 		name: v.string(),

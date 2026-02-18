@@ -186,6 +186,7 @@ export const createMember = authedMutation({
 			firstVisitDate: args.firstVisitDate,
 			notes: args.notes,
 			invitedBy: args.invitedBy,
+			sectorId: args.sectorId,
 		});
 		return memberId;
 	},
@@ -208,6 +209,7 @@ export const createMembersBatch = authedMutation({
 				firstVisitDate: member.firstVisitDate,
 				notes: member.notes,
 				invitedBy: member.invitedBy,
+				sectorId: member.sectorId,
 			});
 			memberIds.push(memberId);
 		}
@@ -238,6 +240,7 @@ export const updateMember = authedMutation({
 			firstVisitDate: fields.firstVisitDate,
 			notes: fields.notes,
 			invitedBy: fields.invitedBy,
+			sectorId: fields.sectorId,
 		});
 
 		return id;

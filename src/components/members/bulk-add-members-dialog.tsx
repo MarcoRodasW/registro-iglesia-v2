@@ -24,6 +24,7 @@ import {
 	DateField,
 	NumberFieldForm,
 	PhoneField,
+	SectorSelectField,
 	SubmitButton,
 	TextareaField,
 	TextField,
@@ -312,6 +313,16 @@ export function BulkAddMembersDialog() {
 															/>
 														)}
 													</form.Field>
+												)}
+											</form.Field>
+
+											<form.Field name={`members[${index}].sectorId`}>
+												{(field: AnyFieldApi) => (
+													<SectorSelectField
+														field={field}
+														label="Sector"
+														disabled={savedIndices.has(index)}
+													/>
 												)}
 											</form.Field>
 

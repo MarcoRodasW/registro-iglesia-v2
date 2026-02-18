@@ -22,11 +22,15 @@ export default defineSchema({
 		email: v.string(),
 		authId: v.string(),
 		role: v.union(v.literal("admin"), v.literal("leader"), v.literal("user")),
+		avatar: v.optional(v.string()),
 	})
 		.index("by_authId", ["authId"])
 		.index("by_email", ["email"]),
 	sectors: defineTable({
 		name: v.string(),
 		description: v.optional(v.string()),
-	}).index("by_name", ["name"]),
+		leaderIds: v.optional(v.array(v.id("users"))),
+	})
+		.index("by_name", ["name"])
+		.index("by_leader", ["leaderIds"]),
 });
