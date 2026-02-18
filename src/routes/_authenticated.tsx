@@ -13,7 +13,8 @@ import { MembersNavbar } from "@/components/members";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
-	beforeLoad: ({ context }) => {
+	beforeLoad: ({ context, preload, cause }) => {
+		if (preload || cause !== "enter") return;
 		if (!context.isAuthenticated) {
 			throw redirect({ to: "/login" });
 		}

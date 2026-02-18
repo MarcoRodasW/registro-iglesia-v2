@@ -22,16 +22,6 @@ export const Route = createFileRoute("/_authenticated/")({
 			throw redirect({ to: "/members" });
 		}
 	},
-	loader: ({ context }) => {
-		const { queryClient } = context;
-		// Fire-and-forget prefetches — don't block navigation.
-		// Components use useSuspenseQuery; Suspense shows skeletons until ready.
-		queryClient.prefetchQuery(convexQuery(api.members.count, {}));
-		queryClient.prefetchQuery(convexQuery(api.members.countNewThisMonth, {}));
-		queryClient.prefetchQuery(
-			convexQuery(api.members.getMemberGrowthTrend, {}),
-		);
-	},
 	component: DashboardPage,
 });
 
