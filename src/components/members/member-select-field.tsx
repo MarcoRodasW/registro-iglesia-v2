@@ -5,16 +5,16 @@ import type { Id } from "@convex/dataModel";
 import { convexQuery } from "@convex-dev/react-query";
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import {
-	Combobox,
-	ComboboxEmpty,
-	ComboboxInput,
-	ComboboxItem,
-	ComboboxList,
-	ComboboxPopup,
-} from "@/components/ui/combobox";
+	Autocomplete,
+	AutocompleteEmpty,
+	AutocompleteInput,
+	AutocompleteItem,
+	AutocompleteList,
+	AutocompletePopup,
+} from "@/components/ui/autocomplete";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 
 interface MemberOption {
@@ -45,7 +45,9 @@ export function MemberSelectField({
 }: MemberSelectFieldProps) {
 	const initialName = (nameField?.state.value as string) ?? "";
 	const [inputValue, setInputValue] = useState(initialName);
-	const selectedLabelRef = useRef<string>(initialName);
+	const selectedIdRef = useRef<string | undefined>(
+		(field.state.value as string | undefined) ?? undefined,
+	);
 
 	const { data: members = [] } = useQuery(
 		convexQuery(api.members.searchMembers, {
@@ -60,74 +62,62 @@ export function MemberSelectField({
 		label: m.fullName,
 	}));
 
-	// Ensure the selected item is always in the items list, even if search filters it out
-	const fieldValue = field.state.value as string | undefined;
-	const selectedInList = fieldValue
-		? items.find((item) => item.value === fieldValue)
-		: undefined;
-
-	const effectiveItems =
-		fieldValue && !selectedInList && selectedLabelRef.current
-			? [{ value: fieldValue, label: selectedLabelRef.current }, ...items]
-			: items;
-
-	const selectedItem = fieldValue
-		? (effectiveItems.find((item) => item.value === fieldValue) ?? null)
-		: null;
-
-	// Sync the label when the selected member is found in search results
-	// (handles case where draft had an ID but initial search didn't include the member)
-	const resolvedLabel = selectedInList?.label;
-	useEffect(() => {
-		if (resolvedLabel && !selectedLabelRef.current) {
-			selectedLabelRef.current = resolvedLabel;
-			setInputValue(resolvedLabel);
-			nameField?.handleChange(resolvedLabel);
-		}
-	}, [resolvedLabel, nameField]);
-
 	return (
 		<Field className={className}>
 			{label && <FieldLabel>{label}</FieldLabel>}
-			<Combobox
-				items={effectiveItems}
-				value={selectedItem}
-				onValueChange={(val) => {
-					field.handleChange(val?.value ?? undefined);
-					selectedLabelRef.current = val?.label ?? "";
-					nameField?.handleChange(val?.label ?? undefined);
-					field.handleBlur();
-					onSelect?.();
-				}}
-				inputValue={inputValue}
-				onInputValueChange={(value) => {
-					setInputValue(value);
-					if (value === "") {
+			<Autocomplete
+				items={items}
+				value={inputValue}
+				onValueChange={(value, details) => {
+					setInputValue(value ?? "");
+
+					if (details.reason === "item-press") {
+						// User selected an existing member from the list
+						const selected = items.find((item) => item.label === value);
+						if (selected) {
+							selectedIdRef.current = selected.value;
+							field.handleChange(selected.value);
+							nameField?.handleChange(selected.label);
+							field.handleBlur();
+							onSelect?.();
+							return;
+						}
+					}
+
+					// Free text typed or cleared
+					if (!value || value === "") {
+						// Cleared
+						selectedIdRef.current = undefined;
 						field.handleChange(undefined);
 						nameField?.handleChange(undefined);
-						selectedLabelRef.current = "";
 						onSelect?.();
+						return;
 					}
+
+					// User is typing free text — clear the member ID reference
+					selectedIdRef.current = undefined;
+					field.handleChange(undefined);
+					nameField?.handleChange(value);
+					onSelect?.();
 				}}
-				isItemEqualToValue={(a, b) => a.value === b.value}
 				filter={null}
 			>
-				<ComboboxInput
-					placeholder="Buscar miembro..."
+				<AutocompleteInput
+					placeholder="Buscar miembro o escribir nombre..."
 					disabled={disabled}
 					showClear
 				/>
-				<ComboboxPopup>
-					<ComboboxEmpty>No se encontraron miembros</ComboboxEmpty>
-					<ComboboxList>
+				<AutocompletePopup>
+					<AutocompleteEmpty>No se encontraron miembros</AutocompleteEmpty>
+					<AutocompleteList>
 						{(item: MemberOption) => (
-							<ComboboxItem key={item.value} value={item}>
+							<AutocompleteItem key={item.value} value={item}>
 								{item.label}
-							</ComboboxItem>
+							</AutocompleteItem>
 						)}
-					</ComboboxList>
-				</ComboboxPopup>
-			</Combobox>
+					</AutocompleteList>
+				</AutocompletePopup>
+			</Autocomplete>
 			{description && <FieldDescription>{description}</FieldDescription>}
 			{field.state.meta.errors.length > 0 && field.state.meta.isTouched && (
 				<div className="text-destructive-foreground text-xs">

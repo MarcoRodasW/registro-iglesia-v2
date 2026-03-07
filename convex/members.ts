@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { authedMutation, authedQuery } from "./utils";
 import { memberFieldsValidator } from "./memberTypes";
 import type { Doc } from "./_generated/dataModel";
+import { internalMutation } from "./_generated/server";
 
 const memberFields = memberFieldsValidator.fields;
 
@@ -175,44 +176,46 @@ export const searchMembers = authedQuery({
 
 export const createMember = authedMutation({
 	args: memberFields,
-	handler: async (ctx, args) => {
-		const memberId = await ctx.db.insert("members", {
-			fullName: args.fullName,
-			phone: args.phone,
-			address: args.address,
-			email: args.email,
-			age: args.age,
-			childrenCount: args.childrenCount,
-			firstVisitDate: args.firstVisitDate,
-			notes: args.notes,
-			invitedBy: args.invitedBy,
-		});
-		return memberId;
-	},
+		handler: async (ctx, args) => {
+			const memberId = await ctx.db.insert("members", {
+				fullName: args.fullName,
+				phone: args.phone,
+				address: args.address,
+				email: args.email,
+				age: args.age,
+				childrenCount: args.childrenCount,
+				firstVisitDate: args.firstVisitDate,
+				notes: args.notes,
+				invitedBy: args.invitedBy,
+				invitedByName: args.invitedByName,
+			});
+			return memberId;
+		},
 });
 
 export const createMembersBatch = authedMutation({
 	args: {
-		members: v.array(v.object(memberFields)),
+		members: v.array(memberFieldsValidator),
 	},
-	handler: async (ctx, args) => {
-		const memberIds: string[] = [];
-		for (const member of args.members) {
-			const memberId = await ctx.db.insert("members", {
-				fullName: member.fullName,
-				phone: member.phone,
-				address: member.address,
-				email: member.email,
-				age: member.age,
-				childrenCount: member.childrenCount,
-				firstVisitDate: member.firstVisitDate,
-				notes: member.notes,
-				invitedBy: member.invitedBy,
-			});
-			memberIds.push(memberId);
-		}
-		return memberIds;
-	},
+		handler: async (ctx, args) => {
+			const memberIds: string[] = [];
+			for (const member of args.members) {
+				const memberId = await ctx.db.insert("members", {
+					fullName: member.fullName,
+					phone: member.phone,
+					address: member.address,
+					email: member.email,
+					age: member.age,
+					childrenCount: member.childrenCount,
+					firstVisitDate: member.firstVisitDate,
+					notes: member.notes,
+					invitedBy: member.invitedBy,
+					invitedByName: member.invitedByName,
+				});
+				memberIds.push(memberId);
+			}
+			return memberIds;
+		},
 });
 
 export const updateMember = authedMutation({
@@ -238,6 +241,7 @@ export const updateMember = authedMutation({
 			firstVisitDate: fields.firstVisitDate,
 			notes: fields.notes,
 			invitedBy: fields.invitedBy,
+			invitedByName: fields.invitedByName,
 		});
 
 		return id;
@@ -256,6 +260,49 @@ export const deleteMember = authedMutation({
 
 		await ctx.db.delete(args.id);
 		return args.id;
+	},
+});
+
+export const backfillInvitedByName = internalMutation({
+	args: {},
+	handler: async (ctx) => {
+		const members = await ctx.db.query("members").collect();
+
+		let updated = 0;
+		let skippedNoInvitedBy = 0;
+		let skippedAlreadyHasName = 0;
+		let skippedInviterMissing = 0;
+
+		for (const member of members) {
+			if (!member.invitedBy) {
+				skippedNoInvitedBy += 1;
+				continue;
+			}
+
+			if (member.invitedByName?.trim()) {
+				skippedAlreadyHasName += 1;
+				continue;
+			}
+
+			const inviter = await ctx.db.get(member.invitedBy);
+			if (!inviter?.fullName?.trim()) {
+				skippedInviterMissing += 1;
+				continue;
+			}
+
+			await ctx.db.patch(member._id, {
+				invitedByName: inviter.fullName,
+			});
+			updated += 1;
+		}
+
+		return {
+			totalMembers: members.length,
+			updated,
+			skippedNoInvitedBy,
+			skippedAlreadyHasName,
+			skippedInviterMissing,
+		};
 	},
 });
 
