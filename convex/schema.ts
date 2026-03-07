@@ -12,6 +12,7 @@ export default defineSchema({
 		firstVisitDate: v.optional(v.number()),
 		notes: v.optional(v.string()),
 		invitedBy: v.optional(v.id("members")),
+		invitedByName: v.optional(v.string()),
 	})
 		.index("by_phone", ["phone"])
 		.index("by_email", ["email"]),

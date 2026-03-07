@@ -48,7 +48,7 @@ export function EditMemberDialog({
 			member.invitedBy ? { id: member.invitedBy as Id<"members"> } : "skip",
 		),
 	);
-	const inviterName = inviter?.fullName ?? "";
+	const inviterName = member.invitedByName ?? inviter?.fullName ?? "";
 
 	const form = useForm({
 		defaultValues: {
@@ -77,6 +77,7 @@ export function EditMemberDialog({
 					invitedBy: (value.invitedBy || undefined) as
 						| Id<"members">
 						| undefined,
+					invitedByName: value.invitedByName?.trim() || undefined,
 					notes: value.notes || undefined,
 				});
 				onOpenChange(false);
