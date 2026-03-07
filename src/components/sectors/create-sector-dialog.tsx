@@ -1,12 +1,24 @@
 import { api } from "@convex/api";
+import type { Id } from "@convex/dataModel";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import {
+	Combobox,
+	ComboboxChip,
+	ComboboxChips,
+	ComboboxEmpty,
+	ComboboxInput,
+	ComboboxItem,
+	ComboboxList,
+	ComboboxPopup,
+	ComboboxValue,
+} from "@/components/ui/combobox";
 import {
 	Dialog,
 	DialogClose,
@@ -18,18 +30,34 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { toastManager } from "@/components/ui/toast";
 import { SubmitButton, TextareaField, TextField } from "@/lib/form-fields";
+
+interface LeaderOption {
+	value: string;
+	label: string;
+}
 
 const sectorSchema = z.object({
 	name: z.string().min(1, "El nombre es requerido"),
 	description: z.string(),
+	leaderIds: z.array(z.string()),
 });
 
 export function CreateSectorDialog() {
 	const [open, setOpen] = useState(false);
 	const queryClient = useQueryClient();
 	const createSectorMutation = useConvexMutation(api.sectors.createSector);
+
+	const { data: leaders = [] } = useQuery(
+		convexQuery(api.users.listLeaders, {}),
+	);
+
+	const leaderItems: LeaderOption[] = leaders.map((leader) => ({
+		value: leader._id,
+		label: leader.name,
+	}));
 
 	const createSector = useMutation({
 		mutationFn: createSectorMutation,
@@ -49,6 +77,7 @@ export function CreateSectorDialog() {
 		defaultValues: {
 			name: "",
 			description: "",
+			leaderIds: [] as string[],
 		},
 		validators: {
 			onChange: sectorSchema,
@@ -57,6 +86,10 @@ export function CreateSectorDialog() {
 			await createSector.mutateAsync({
 				name: value.name,
 				description: value.description || undefined,
+				leaderIds:
+					value.leaderIds.length > 0
+						? (value.leaderIds as Id<"users">[])
+						: undefined,
 			});
 			form.reset();
 		},
@@ -102,6 +135,67 @@ export function CreateSectorDialog() {
 									textareaProps={{ placeholder: "Descripción del sector" }}
 								/>
 							)}
+						/>
+						<form.Field
+							name="leaderIds"
+							children={(field) => {
+								const selectedIds = (field.state.value ?? []) as string[];
+								const selectedItems = leaderItems.filter((item) =>
+									selectedIds.includes(item.value),
+								);
+
+								return (
+									<Field>
+										<FieldLabel>Líderes (opcional)</FieldLabel>
+										<Combobox
+											items={leaderItems}
+											multiple
+											value={selectedItems}
+											onValueChange={(newValue: LeaderOption[] | null) => {
+												const ids = (newValue ?? []).map((item) => item.value);
+												field.handleChange(ids);
+											}}
+										>
+											<ComboboxChips>
+												<ComboboxValue>
+													{(value: LeaderOption[]) => (
+														<>
+															{value?.map((item) => (
+																<ComboboxChip
+																	key={item.value}
+																	aria-label={item.label}
+																>
+																	{item.label}
+																</ComboboxChip>
+															))}
+															<ComboboxInput
+																placeholder={
+																	value.length > 0
+																		? undefined
+																		: "Buscar líderes..."
+																}
+																aria-label="Buscar líderes"
+															/>
+														</>
+													)}
+												</ComboboxValue>
+											</ComboboxChips>
+											<ComboboxPopup>
+												<ComboboxEmpty>
+													No se encontraron líderes.
+												</ComboboxEmpty>
+												<ComboboxList>
+													{(item: LeaderOption) => (
+														<ComboboxItem value={item}>
+															{item.label}
+														</ComboboxItem>
+													)}
+												</ComboboxList>
+											</ComboboxPopup>
+										</Combobox>
+									</Field>
+								);
+							}}
 						/>
 					</form>
 				</DialogPanel>

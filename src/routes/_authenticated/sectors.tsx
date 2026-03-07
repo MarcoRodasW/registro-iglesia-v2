@@ -1,10 +1,12 @@
 import { api } from "@convex/api";
-import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-
+import { Suspense } from "react";
 import { CreateSectorDialog } from "@/components/sectors/create-sector-dialog";
-import { SectorsTable } from "@/components/sectors/sectors-table";
+import {
+	SectorsGrid,
+	SectorsGridSkeleton,
+} from "@/components/sectors/sectors-grid";
 
 export const Route = createFileRoute("/_authenticated/sectors")({
 	component: SectorsPage,
@@ -24,25 +26,15 @@ export const Route = createFileRoute("/_authenticated/sectors")({
 });
 
 function SectorsPage() {
-	const queryClient = useQueryClient();
-
-	const deleteSectorMutation = useConvexMutation(api.sectors.deleteSector);
-	const deleteSector = useMutation({
-		mutationFn: deleteSectorMutation,
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({
-				queryKey: convexQuery(api.sectors.listSectors, {}).queryKey,
-			});
-		},
-	});
-
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<h1 className="text-3xl font-bold">Sectores</h1>
 				<CreateSectorDialog />
 			</div>
-			<SectorsTable onDeleteSector={(args) => deleteSector.mutate(args)} />
+			<Suspense fallback={<SectorsGridSkeleton />}>
+				<SectorsGrid />
+			</Suspense>
 		</div>
 	);
 }

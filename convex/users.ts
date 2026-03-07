@@ -1,5 +1,10 @@
 import { v } from "convex/values";
-import { authedQuery, adminQuery, adminMutation } from "./utils";
+import {
+	authedQuery,
+	adminQuery,
+	adminMutation,
+	adminOrLeaderQuery,
+} from "./utils";
 
 export const getCurrentUserWithRole = authedQuery({
 	args: {},
@@ -20,6 +25,20 @@ export const listUsers = adminQuery({
 	args: {},
 	handler: async (ctx) => {
 		return await ctx.db.query("users").order("desc").collect();
+	},
+});
+
+export const listLeaders = adminOrLeaderQuery({
+	args: {},
+	handler: async (ctx) => {
+		const users = await ctx.db.query("users").collect();
+		return users
+			.filter((u) => u.role === "admin" || u.role === "leader")
+			.map((u) => ({
+				_id: u._id,
+				name: u.name,
+				email: u.email,
+			}));
 	},
 });
 
