@@ -144,6 +144,11 @@ export function BulkAddMembersDialog() {
 		[resetSavedIndices],
 	);
 
+	const handleCancelDialog = () => {
+		clearDraftState();
+		form.reset();
+	};
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogTrigger
@@ -359,7 +364,10 @@ export function BulkAddMembersDialog() {
 					</form>
 				</DialogPanel>
 				<DialogFooter className="gap-2">
-					<DialogClose render={<Button variant="outline" />}>
+					<DialogClose
+						onClick={handleCancelDialog}
+						render={<Button variant="outline" />}
+					>
 						Cancelar
 					</DialogClose>
 					<form.Subscribe

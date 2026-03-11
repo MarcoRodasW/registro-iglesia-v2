@@ -12,6 +12,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { FieldErrors, FieldValidating } from "@/lib/form-fields";
 
 export interface SectorSelectFieldProps {
 	field: AnyFieldApi;
@@ -19,49 +20,6 @@ export interface SectorSelectFieldProps {
 	description?: string;
 	className?: string;
 	disabled?: boolean;
-}
-
-function FieldErrors({ field }: { field: AnyFieldApi }) {
-	const errors = field.state.meta.errors;
-	const isTouched = field.state.meta.isTouched;
-
-	if (!isTouched || !errors || errors.length === 0) return null;
-
-	const normalizeErrorMessage = (error: unknown) => {
-		if (typeof error === "string") return error;
-		if (error && typeof error === "object" && "message" in error) {
-			const message = (error as { message?: unknown }).message;
-			if (typeof message === "string") return message;
-		}
-		return "Invalid value";
-	};
-
-	return (
-		<div className="flex flex-col gap-1">
-			{errors.map((error, index) => {
-				const errorMessage = normalizeErrorMessage(error);
-				return (
-					<span
-						key={`${field.name}-error-${index}`}
-						className="text-destructive-foreground text-xs"
-						role="alert"
-					>
-						{errorMessage}
-					</span>
-				);
-			})}
-		</div>
-	);
-}
-
-function FieldValidating({ field }: { field: AnyFieldApi }) {
-	if (!field.state.meta.isValidating) return null;
-
-	return (
-		<span className="text-muted-foreground text-xs animate-pulse">
-			Validating...
-		</span>
-	);
 }
 
 export function SectorSelectField({

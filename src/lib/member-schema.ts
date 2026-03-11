@@ -42,22 +42,6 @@ export function createEmptyMemberRow(): MemberFormData {
 	};
 }
 
-/** @deprecated Use createEmptyMemberRow() */
-export const emptyMemberRow: MemberFormData = {
-	_rowId: crypto.randomUUID(),
-	fullName: "",
-	phone: "",
-	address: "",
-	email: "",
-	age: undefined,
-	childrenCount: undefined,
-	firstVisitDate: undefined,
-	notes: "",
-	invitedBy: undefined,
-	invitedByName: undefined,
-	sectorId: undefined,
-};
-
 export const DRAFT_STORAGE_KEY = "members-draft";
 
 export function saveDraft(members: MemberFormData[]): void {
