@@ -12,7 +12,9 @@ export default defineSchema({
 		firstVisitDate: v.optional(v.number()),
 		notes: v.optional(v.string()),
 		invitedBy: v.optional(v.id("members")),
+		// Keep both fields during migration: sectors (legacy) and invitedByName (new)
 		sectorId: v.optional(v.id("sectors")),
+		invitedByName: v.optional(v.string()),
 	})
 		.index("by_phone", ["phone"])
 		.index("by_email", ["email"])
