@@ -11,9 +11,8 @@ export const memberFieldsValidator = v.object({
 	firstVisitDate: v.optional(v.number()),
 	notes: v.optional(v.string()),
 	invitedBy: v.optional(v.id("members")),
-    // Keep both legacy/new fields so commits from either branch work.
-    sectorId: v.optional(v.id("sectors")),
     invitedByName: v.optional(v.string()),
+    sectorId: v.optional(v.id("sectors")),
 });
 
 export type MemberFields = Infer<typeof memberFieldsValidator>;

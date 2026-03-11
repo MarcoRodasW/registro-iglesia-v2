@@ -176,23 +176,6 @@ export const searchMembers = authedQuery({
 
 export const createMember = authedMutation({
 	args: memberFields,
-<<<<<<< HEAD
-	handler: async (ctx, args) => {
-		const memberId = await ctx.db.insert("members", {
-			fullName: args.fullName,
-			phone: args.phone,
-			address: args.address,
-			email: args.email,
-			age: args.age,
-			childrenCount: args.childrenCount,
-			firstVisitDate: args.firstVisitDate,
-			notes: args.notes,
-			invitedBy: args.invitedBy,
-			sectorId: args.sectorId,
-		});
-		return memberId;
-	},
-=======
 		handler: async (ctx, args) => {
 			const memberId = await ctx.db.insert("members", {
 				fullName: args.fullName,
@@ -205,38 +188,16 @@ export const createMember = authedMutation({
 				notes: args.notes,
 				invitedBy: args.invitedBy,
 				invitedByName: args.invitedByName,
+				sectorId: args.sectorId,
+
 			});
 			return memberId;
 		},
->>>>>>> origin/main
 });
 
 export const createMembersBatch = authedMutation({
 	args: {
-<<<<<<< HEAD
-		members: v.array(v.object(memberFields)),
-	},
-	handler: async (ctx, args) => {
-		const memberIds: string[] = [];
-		for (const member of args.members) {
-			const memberId = await ctx.db.insert("members", {
-				fullName: member.fullName,
-				phone: member.phone,
-				address: member.address,
-				email: member.email,
-				age: member.age,
-				childrenCount: member.childrenCount,
-				firstVisitDate: member.firstVisitDate,
-				notes: member.notes,
-				invitedBy: member.invitedBy,
-				sectorId: member.sectorId,
-			});
-			memberIds.push(memberId);
-		}
-		return memberIds;
-=======
 		members: v.array(memberFieldsValidator),
->>>>>>> origin/main
 	},
 		handler: async (ctx, args) => {
 			const memberIds: string[] = [];
@@ -252,6 +213,7 @@ export const createMembersBatch = authedMutation({
 					notes: member.notes,
 					invitedBy: member.invitedBy,
 					invitedByName: member.invitedByName,
+					sectorId: member.sectorId,
 				});
 				memberIds.push(memberId);
 			}
@@ -282,11 +244,8 @@ export const updateMember = authedMutation({
 			firstVisitDate: fields.firstVisitDate,
 			notes: fields.notes,
 			invitedBy: fields.invitedBy,
-<<<<<<< HEAD
 			sectorId: fields.sectorId,
-=======
 			invitedByName: fields.invitedByName,
->>>>>>> origin/main
 		});
 
 		return id;
