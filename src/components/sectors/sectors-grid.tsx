@@ -1,6 +1,6 @@
 import { api } from "@convex/api";
 import { convexQuery } from "@convex-dev/react-query";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import {
 	EyeIcon,
 	MapPinIcon,
@@ -28,9 +28,13 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { DeleteSectorAlert } from "./delete-sector-alert";
-import { DetailSectorDialog } from "./detail-sector-dialog";
+import {
+	DetailSectorDialog,
+	prefetchSectorDetailQueries,
+} from "./detail-sector-dialog";
 
 export function SectorsGrid() {
+	const queryClient = useQueryClient();
 	const { data: sectors } = useSuspenseQuery(
 		convexQuery(api.sectors.listSectors, {}),
 	);
@@ -61,6 +65,24 @@ export function SectorsGrid() {
 											variant="ghost"
 											size="icon"
 											className="size-8"
+											onMouseEnter={() =>
+												void prefetchSectorDetailQueries(
+													queryClient,
+													sector._id,
+												)
+											}
+											onFocus={() =>
+												void prefetchSectorDetailQueries(
+													queryClient,
+													sector._id,
+												)
+											}
+											onPointerDown={() =>
+												void prefetchSectorDetailQueries(
+													queryClient,
+													sector._id,
+												)
+											}
 											onClick={() => setSectorToEdit(sector)}
 										>
 											<EyeIcon className="size-4" />

@@ -1,7 +1,12 @@
 import { api } from "@convex/api";
-import type { Doc } from "@convex/dataModel";
+import type { Doc, Id } from "@convex/dataModel";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+	type QueryClient,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import { MapPinIcon, PhoneIcon, ShieldIcon, UsersIcon } from "lucide-react";
 import { useCallback } from "react";
 
@@ -43,19 +48,15 @@ export function DetailSectorDialog({
 
 	const sectorsQuery = convexQuery(api.sectors.listSectors, {});
 
-	const { data: members, isLoading: membersLoading } = useQuery({
-		...convexQuery(api.members.listMembersBySector, {
+	const { data: sectorDetail, isLoading: detailLoading } = useQuery({
+		...convexQuery(api.sectors.getSector, {
 			sectorId: sector._id,
 		}),
 		enabled: open,
 	});
 
-	const { data: sectorLeaders = [], isLoading: leadersLoading } = useQuery({
-		...convexQuery(api.sectors.listLeadersBySector, {
-			sectorId: sector._id,
-		}),
-		enabled: open,
-	});
+	const members = sectorDetail?.members;
+	const sectorLeaders = sectorDetail?.leaders ?? [];
 
 	const updateSector = useMutation({
 		mutationFn: updateSectorMutation,
@@ -156,7 +157,7 @@ export function DetailSectorDialog({
 							</div>
 
 							<ScrollArea className="flex-1 max-md:max-h-[40vh]">
-								{membersLoading ? (
+								{detailLoading ? (
 									<MembersTableSkeleton />
 								) : members && members.length > 0 ? (
 									<Table>
@@ -212,7 +213,7 @@ export function DetailSectorDialog({
 							</div>
 
 							<ScrollArea className="flex-1 max-md:max-h-[30vh]">
-								{leadersLoading ? (
+								{detailLoading ? (
 									<LeadersListSkeleton />
 								) : sectorLeaders.length > 0 ? (
 									<ul className="divide-y divide-border/40">
@@ -262,6 +263,17 @@ export function DetailSectorDialog({
 			</DialogContent>
 		</Dialog>
 	);
+}
+
+export function prefetchSectorDetailQueries(
+	queryClient: QueryClient,
+	sectorId: Id<"sectors">,
+) {
+	const sectorDetailQuery = convexQuery(api.sectors.getSector, {
+		sectorId,
+	});
+
+	return queryClient.prefetchQuery(sectorDetailQuery);
 }
 
 function MembersTableSkeleton() {

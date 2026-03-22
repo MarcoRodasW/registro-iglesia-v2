@@ -41,14 +41,36 @@ export const getSector = adminOrLeaderQuery({
 			.query("members")
 			.withIndex("by_sector", (q) => q.eq("sectorId", args.sectorId))
 			.collect();
-		const memberCount = members.length;
 
-		const leaderCount = sector.leaderIds?.length ?? 0;
+		const leaders = await Promise.all(
+			(sector.leaderIds ?? []).map(async (leaderId) => {
+				const user = await ctx.db.get(leaderId);
+				if (!user) {
+					return null;
+				}
+
+				return {
+					_id: user._id,
+					name: user.name,
+					email: user.email,
+				};
+			}),
+		);
+
+		const mappedLeaders = leaders.filter((leader) => leader !== null);
+		const mappedMembers = members.map((member) => ({
+			_id: member._id,
+			fullName: member.fullName,
+			phone: member.phone,
+			address: member.address,
+		}));
 
 		return {
 			...sector,
-			memberCount,
-			leaderCount,
+			memberCount: mappedMembers.length,
+			leaderCount: mappedLeaders.length,
+			members: mappedMembers,
+			leaders: mappedLeaders,
 		};
 	},
 });

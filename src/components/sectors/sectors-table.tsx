@@ -1,7 +1,7 @@
 import { api } from "@convex/api";
 import type { Doc, Id } from "@convex/dataModel";
 import { convexQuery } from "@convex-dev/react-query";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { MapPinIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
@@ -33,7 +33,10 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { DetailSectorDialog } from "./detail-sector-dialog";
+import {
+	DetailSectorDialog,
+	prefetchSectorDetailQueries,
+} from "./detail-sector-dialog";
 
 interface PendingDelete {
 	sectorId: Id<"sectors">;
@@ -45,6 +48,7 @@ export function SectorsTable({
 }: {
 	onDeleteSector: (args: { sectorId: Id<"sectors"> }) => void;
 }) {
+	const queryClient = useQueryClient();
 	const { data: sectors } = useSuspenseQuery(
 		convexQuery(api.sectors.listSectors, {}),
 	);
@@ -126,6 +130,24 @@ export function SectorsTable({
 												<Button
 													variant="ghost"
 													size="icon"
+													onMouseEnter={() =>
+														void prefetchSectorDetailQueries(
+															queryClient,
+															sector._id,
+														)
+													}
+													onFocus={() =>
+														void prefetchSectorDetailQueries(
+															queryClient,
+															sector._id,
+														)
+													}
+													onPointerDown={() =>
+														void prefetchSectorDetailQueries(
+															queryClient,
+															sector._id,
+														)
+													}
 													onClick={() => handleEditRequest(sector)}
 												>
 													<PencilIcon className="size-4" />
