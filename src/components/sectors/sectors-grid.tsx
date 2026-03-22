@@ -26,8 +26,9 @@ import {
 	EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { DeleteSectorAlert } from "./delete-sector-alert";
-import { EditSectorDialog } from "./edit-sector-dialog";
+import { DetailSectorDialog } from "./detail-sector-dialog";
 
 export function SectorsGrid() {
 	const { data: sectors } = useSuspenseQuery(
@@ -49,7 +50,7 @@ export function SectorsGrid() {
 				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
 					{sectors.map((sector) => (
 						<Card key={sector._id} className="flex flex-col">
-							<CardHeader className="pb-3">
+							<CardHeader className="">
 								<div className="flex items-start justify-between">
 									<div className="flex items-center gap-2">
 										<MapPinIcon className="size-5 text-muted-foreground" />
@@ -75,6 +76,18 @@ export function SectorsGrid() {
 									</div>
 								</div>
 							</CardHeader>
+							<CardContent className="flex-1">
+								<p
+									className={cn(
+										"text-sm line-clamp-2",
+										sector.description
+											? "text-muted-foreground"
+											: "text-muted-foreground/50 italic",
+									)}
+								>
+									{sector.description ?? "Sin descripción añadida aún"}
+								</p>
+							</CardContent>
 							<CardFooter className="border-t pt-4">
 								<div className="flex w-full justify-around text-sm text-muted-foreground">
 									<div className="flex items-center gap-1.5">
@@ -93,7 +106,7 @@ export function SectorsGrid() {
 			)}
 
 			{sectorToEdit && (
-				<EditSectorDialog
+				<DetailSectorDialog
 					sector={sectorToEdit}
 					open={!!sectorToEdit}
 					onOpenChange={(open) => !open && setSectorToEdit(null)}

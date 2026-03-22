@@ -44,9 +44,9 @@ function AuthenticatedLayout() {
 		<div className="min-h-screen flex flex-col">
 			<MembersNavbar />
 
-			<nav className="border-b bg-background">
+			<nav className="border-b bg-background overflow-x-auto">
 				<div className="mx-auto max-w-6xl px-4">
-					<div className="flex items-center gap-1 -mb-px">
+					<div className="flex items-center gap-1 -mb-px min-w-0">
 						{isAdmin && (
 							<NavLink to="/" icon={<LayoutDashboardIcon className="size-4" />}>
 								Dashboard

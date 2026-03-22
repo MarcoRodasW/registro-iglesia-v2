@@ -33,7 +33,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { EditSectorDialog } from "./edit-sector-dialog";
+import { DetailSectorDialog } from "./detail-sector-dialog";
 
 interface PendingDelete {
 	sectorId: Id<"sectors">;
@@ -151,7 +151,7 @@ export function SectorsTable({
 			</Card>
 
 			{editSector && (
-				<EditSectorDialog
+				<DetailSectorDialog
 					sector={editSector}
 					open={editOpen}
 					onOpenChange={setEditOpen}

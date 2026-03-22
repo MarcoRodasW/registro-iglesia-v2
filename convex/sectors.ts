@@ -53,6 +53,35 @@ export const getSector = adminOrLeaderQuery({
 	},
 });
 
+export const listLeadersBySector = adminOrLeaderQuery({
+	args: {
+		sectorId: v.id("sectors"),
+	},
+	handler: async (ctx, args) => {
+		const sector = await ctx.db.get(args.sectorId);
+		if (!sector?.leaderIds || sector.leaderIds.length === 0) {
+			return [];
+		}
+
+		const leaders = await Promise.all(
+			sector.leaderIds.map(async (leaderId) => {
+				const user = await ctx.db.get(leaderId);
+				if (!user) {
+					return null;
+				}
+
+				return {
+					_id: user._id,
+					name: user.name,
+					email: user.email,
+				};
+			}),
+		);
+
+		return leaders.filter((leader) => leader !== null);
+	},
+});
+
 export const createSector = adminOrLeaderMutation({
 	args: {
 		name: v.string(),
