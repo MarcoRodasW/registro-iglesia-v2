@@ -51,7 +51,7 @@ export function CreateSectorDialog() {
 	const createSectorMutation = useConvexMutation(api.sectors.createSector);
 
 	const { data: leaders = [] } = useQuery(
-		convexQuery(api.users.listLeaders, {}),
+		convexQuery(api.users.listAssignableLeaders, {}),
 	);
 
 	const leaderItems: LeaderOption[] = leaders.map((leader) => ({

@@ -7,11 +7,20 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
-import { MapPinIcon, PhoneIcon, ShieldIcon, UsersIcon } from "lucide-react";
-import { useCallback } from "react";
+import {
+	MapPinIcon,
+	PhoneIcon,
+	PlusIcon,
+	ShieldIcon,
+	UserMinusIcon,
+	UsersIcon,
+	XIcon,
+} from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -19,7 +28,6 @@ import {
 	DialogPanel,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableBody,
@@ -29,7 +37,24 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { toastManager } from "@/components/ui/toast";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn, formatPhone } from "@/lib/utils";
+import {
+	EmptyLeaders,
+	EmptyMembers,
+} from "./detail-sector-dialog/empty-states";
+import { LeaderEditPanel } from "./detail-sector-dialog/leader-edit-panel";
+import { MemberSearchPanel } from "./detail-sector-dialog/member-search-panel";
+import {
+	LeadersListSkeleton,
+	MembersTableSkeleton,
+} from "./detail-sector-dialog/skeletons";
+import type { LeaderOption } from "./detail-sector-dialog/types";
 import { DetailSectorForm } from "./detail-sector-form";
 
 interface DetailSectorDialogProps {
@@ -44,19 +69,75 @@ export function DetailSectorDialog({
 	onOpenChange,
 }: DetailSectorDialogProps) {
 	const queryClient = useQueryClient();
-	const updateSectorMutation = useConvexMutation(api.sectors.updateSector);
 
+	const updateSectorMutation = useConvexMutation(api.sectors.updateSector);
+	const setSectorLeadersMutation = useConvexMutation(
+		api.sectors.setSectorLeaders,
+	);
+	const assignMembersMutation = useConvexMutation(
+		api.sectors.assignMembersToSector,
+	);
+	const removeMembersMutation = useConvexMutation(
+		api.sectors.removeMembersFromSector,
+	);
+
+	const [leaderPanelOpen, setLeaderPanelOpen] = useState(false);
+	const [memberPanelOpen, setMemberPanelOpen] = useState(false);
+
+	const [leaderSearch, setLeaderSearch] = useState("");
+	const [pendingLeaderIds, setPendingLeaderIds] = useState<string[]>([]);
+	const [isSavingLeaders, setIsSavingLeaders] = useState(false);
+
+	const [memberSearch, setMemberSearch] = useState("");
+	const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+	const [isAssigningMembers, setIsAssigningMembers] = useState(false);
+
+	const sectorDetailQuery = convexQuery(api.sectors.getSector, {
+		sectorId: sector._id,
+	});
 	const sectorsQuery = convexQuery(api.sectors.listSectors, {});
 
 	const { data: sectorDetail, isLoading: detailLoading } = useQuery({
-		...convexQuery(api.sectors.getSector, {
-			sectorId: sector._id,
-		}),
+		...sectorDetailQuery,
 		enabled: open,
 	});
 
-	const members = sectorDetail?.members;
+	const { data: assignableLeaders = [] } = useQuery({
+		...convexQuery(api.users.listAssignableLeaders, {
+			sectorId: sector._id,
+			search: leaderSearch || undefined,
+		}),
+		enabled: open && leaderPanelOpen,
+		placeholderData: (previous) => previous,
+	});
+
+	const { data: availableMembers = [], isFetching: searchingMembers } =
+		useQuery({
+			...convexQuery(api.sectors.searchMembersNotInSector, {
+				search: memberSearch || undefined,
+				limit: 20,
+			}),
+			enabled: open && memberPanelOpen,
+			placeholderData: (previous) => previous,
+		});
+
+	const members = sectorDetail?.members ?? [];
 	const sectorLeaders = sectorDetail?.leaders ?? [];
+
+	const leaderItems = useMemo<LeaderOption[]>(() => {
+		const merged = [
+			...sectorLeaders.map((leader) => ({
+				value: leader._id,
+				label: leader.name,
+			})),
+			...assignableLeaders.map((leader) => ({
+				value: leader._id,
+				label: leader.name,
+			})),
+		];
+
+		return [...new Map(merged.map((item) => [item.value, item])).values()];
+	}, [assignableLeaders, sectorLeaders]);
 
 	const updateSector = useMutation({
 		mutationFn: updateSectorMutation,
@@ -74,17 +155,9 @@ export function DetailSectorDialog({
 						return current;
 					}
 
-					return current.map((item) => {
-						if (item._id !== sector._id) {
-							return item;
-						}
-
-						return {
-							...item,
-							name,
-							description,
-						};
-					});
+					return current.map((item) =>
+						item._id === sector._id ? { ...item, name, description } : item,
+					);
 				},
 			);
 
@@ -92,7 +165,6 @@ export function DetailSectorDialog({
 		},
 		onError: (_error, _variables, context) => {
 			queryClient.setQueryData(sectorsQuery.queryKey, context?.previousSectors);
-
 			toastManager.add({
 				title: "Error al actualizar el sector",
 				type: "error",
@@ -103,7 +175,7 @@ export function DetailSectorDialog({
 		},
 	});
 
-	const handleSave = useCallback(
+	const handleSaveSectorField = useCallback(
 		(field: "name" | "description", value: string) => {
 			if (field === "name") {
 				const name = value.trim();
@@ -132,87 +204,292 @@ export function DetailSectorDialog({
 		[sector, updateSector],
 	);
 
+	const handleOpenLeaderPanel = useCallback(() => {
+		setPendingLeaderIds(sectorLeaders.map((leader) => leader._id));
+		setLeaderSearch("");
+		setLeaderPanelOpen(true);
+	}, [sectorLeaders]);
+
+	const handleCloseLeaderPanel = useCallback(() => {
+		setLeaderPanelOpen(false);
+		setPendingLeaderIds([]);
+		setLeaderSearch("");
+	}, []);
+
+	const handleSaveLeaders = useCallback(async () => {
+		setIsSavingLeaders(true);
+		try {
+			await setSectorLeadersMutation({
+				sectorId: sector._id,
+				leaderIds: pendingLeaderIds as Id<"users">[],
+			});
+
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: sectorDetailQuery.queryKey }),
+				queryClient.invalidateQueries({ queryKey: sectorsQuery.queryKey }),
+			]);
+
+			toastManager.add({
+				title: "Líderes actualizados correctamente",
+				type: "success",
+			});
+			setLeaderPanelOpen(false);
+		} catch {
+			toastManager.add({ title: "Error al actualizar líderes", type: "error" });
+		} finally {
+			setIsSavingLeaders(false);
+		}
+	}, [
+		pendingLeaderIds,
+		sector._id,
+		setSectorLeadersMutation,
+		queryClient,
+		sectorDetailQuery.queryKey,
+		sectorsQuery.queryKey,
+	]);
+
+	const handleOpenMemberPanel = useCallback(() => {
+		setSelectedMemberIds([]);
+		setMemberSearch("");
+		setMemberPanelOpen(true);
+	}, []);
+
+	const handleCloseMemberPanel = useCallback(() => {
+		setMemberPanelOpen(false);
+		setSelectedMemberIds([]);
+		setMemberSearch("");
+	}, []);
+
+	const toggleMemberSelection = useCallback((memberId: string) => {
+		setSelectedMemberIds((previous) =>
+			previous.includes(memberId)
+				? previous.filter((id) => id !== memberId)
+				: [...previous, memberId],
+		);
+	}, []);
+
+	const handleAssignMembers = useCallback(async () => {
+		if (selectedMemberIds.length === 0) {
+			return;
+		}
+
+		setIsAssigningMembers(true);
+		try {
+			await assignMembersMutation({
+				sectorId: sector._id,
+				memberIds: selectedMemberIds as Id<"members">[],
+			});
+
+			await queryClient.invalidateQueries({
+				queryKey: sectorDetailQuery.queryKey,
+			});
+			toastManager.add({
+				title: `${selectedMemberIds.length} miembro${selectedMemberIds.length > 1 ? "s" : ""} asignado${selectedMemberIds.length > 1 ? "s" : ""}`,
+				type: "success",
+			});
+			handleCloseMemberPanel();
+		} catch {
+			toastManager.add({ title: "Error al asignar miembros", type: "error" });
+		} finally {
+			setIsAssigningMembers(false);
+		}
+	}, [
+		selectedMemberIds,
+		sector._id,
+		assignMembersMutation,
+		queryClient,
+		sectorDetailQuery.queryKey,
+		handleCloseMemberPanel,
+	]);
+
+	const handleRemoveMember = useCallback(
+		async (memberId: string) => {
+			try {
+				await removeMembersMutation({ memberIds: [memberId as Id<"members">] });
+				await queryClient.invalidateQueries({
+					queryKey: sectorDetailQuery.queryKey,
+				});
+			} catch {
+				toastManager.add({
+					title: "Error al quitar el miembro",
+					type: "error",
+				});
+			}
+		},
+		[removeMembersMutation, queryClient, sectorDetailQuery.queryKey],
+	);
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-4xl max-h-[90vh] sm:min-h-[70vh] max-sm:min-h-[60vh] overflow-hidden flex flex-col">
+			<DialogContent className="max-w-4xl max-h-[92vh] sm:min-h-[72vh] max-sm:min-h-[65vh] overflow-hidden flex flex-col">
 				<DialogHeader>
 					<DetailSectorForm
 						name={sector.name}
 						description={sector.description ?? ""}
-						onSave={handleSave}
+						onSave={handleSaveSectorField}
 					/>
 				</DialogHeader>
 
-				<DialogPanel className="flex-1 overflow-hidden">
-					<div className="grid grid-cols-1 md:grid-cols-[1fr_280px] h-full min-h-0">
+				<DialogPanel className="flex-1 overflow-hidden" scrollFade={false}>
+					<div className="grid grid-cols-1 md:grid-cols-[1fr_300px] h-full min-h-0">
 						<div className="flex flex-col min-h-0 max-md:border-b md:border-r border-border/50">
-							<div className="flex items-center gap-2 p-3 border-b border-border/40 bg-muted/30">
+							<div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 bg-muted/30">
+								<UsersIcon className="size-3.5 text-muted-foreground" />
 								<h3 className="text-sm font-semibold tracking-tight">
 									Miembros asignados
 								</h3>
-								<UsersIcon className="size-4 text-muted-foreground" />
 								<Badge variant="outline" size="sm">
-									{members?.length ?? 0}
+									{members.length}
 								</Badge>
+								<div className="ml-auto">
+									{memberPanelOpen ? (
+										<Button
+											size="xs"
+											variant="ghost"
+											onClick={handleCloseMemberPanel}
+											className="gap-1 text-muted-foreground"
+										>
+											<XIcon className="size-3" />
+											Cancelar
+										</Button>
+									) : (
+										<Button
+											size="xs"
+											variant="outline"
+											onClick={handleOpenMemberPanel}
+											className="gap-1"
+										>
+											<PlusIcon className="size-3" />
+											Agregar
+										</Button>
+									)}
+								</div>
 							</div>
 
-							<ScrollArea className="flex-1 max-md:max-h-[40vh]">
+							{memberPanelOpen ? (
+								<MemberSearchPanel
+									members={availableMembers}
+									isSearching={searchingMembers}
+									search={memberSearch}
+									onSearchChange={setMemberSearch}
+									selectedIds={selectedMemberIds}
+									onToggle={toggleMemberSelection}
+									onAssign={handleAssignMembers}
+									isAssigning={isAssigningMembers}
+								/>
+							) : null}
+
+							<ScrollArea className="flex-1 max-md:max-h-[38vh]">
 								{detailLoading ? (
 									<MembersTableSkeleton />
-								) : members && members.length > 0 ? (
-									<Table>
-										<TableHeader>
-											<TableRow>
-												<TableHead className="pl-4">Nombre</TableHead>
-												<TableHead>Telefono</TableHead>
-												<TableHead className="pr-4">Direccion</TableHead>
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{members.map((member) => (
-												<TableRow key={member._id}>
-													<TableCell className="pl-4 font-medium">
-														{member.fullName}
-													</TableCell>
-													<TableCell className="tabular-nums text-muted-foreground">
-														<span className="inline-flex items-center gap-1.5">
-															<PhoneIcon className="size-3 shrink-0" />
-															{formatPhone(member.phone)}
-														</span>
-													</TableCell>
-													<TableCell className="pr-4 text-muted-foreground max-w-50 truncate">
-														<span className="inline-flex items-center gap-1.5">
-															<MapPinIcon className="size-3 shrink-0" />
-															<span className="truncate">{member.address}</span>
-														</span>
-													</TableCell>
+								) : members.length > 0 ? (
+									<TooltipProvider>
+										<Table>
+											<TableHeader>
+												<TableRow>
+													<TableHead className="pl-4">Nombre</TableHead>
+													<TableHead>Teléfono</TableHead>
+													<TableHead className="pr-2">Dirección</TableHead>
+													<TableHead className="w-8 pr-3" />
 												</TableRow>
-											))}
-										</TableBody>
-									</Table>
+											</TableHeader>
+											<TableBody>
+												{members.map((member) => (
+													<TableRow key={member._id} className="group">
+														<TableCell className="pl-4 font-medium">
+															{member.fullName}
+														</TableCell>
+														<TableCell className="tabular-nums text-muted-foreground">
+															<span className="inline-flex items-center gap-1.5">
+																<PhoneIcon className="size-3 shrink-0" />
+																{formatPhone(member.phone)}
+															</span>
+														</TableCell>
+														<TableCell className="pr-2 text-muted-foreground max-w-44 truncate">
+															<span className="inline-flex items-center gap-1.5">
+																<MapPinIcon className="size-3 shrink-0" />
+																<span className="truncate">
+																	{member.address}
+																</span>
+															</span>
+														</TableCell>
+														<TableCell className="pr-3">
+															<Tooltip>
+																<TooltipTrigger
+																	className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+																	render={
+																		<Button
+																			size="icon-xs"
+																			variant="ghost"
+																			className="text-muted-foreground hover:text-destructive-foreground hover:bg-destructive/8"
+																			onClick={() =>
+																				handleRemoveMember(member._id)
+																			}
+																		/>
+																	}
+																>
+																	<UserMinusIcon className="size-3.5" />
+																</TooltipTrigger>
+																<TooltipContent>
+																	Quitar del sector
+																</TooltipContent>
+															</Tooltip>
+														</TableCell>
+													</TableRow>
+												))}
+											</TableBody>
+										</Table>
+									</TooltipProvider>
 								) : (
-									<div className="flex flex-col items-center justify-center py-12 text-center">
-										<UsersIcon className="size-8 text-muted-foreground/40 mb-2" />
-										<p className="text-sm text-muted-foreground">
-											No hay miembros asignados a este sector.
-										</p>
-									</div>
+									<EmptyMembers onAdd={handleOpenMemberPanel} />
 								)}
 							</ScrollArea>
 						</div>
 
 						<div className="flex flex-col min-h-0">
-							<div className="flex items-center gap-2 p-3 border-b border-border/40 bg-muted/30">
+							<div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 bg-muted/30">
+								<ShieldIcon className="size-3.5 text-muted-foreground" />
 								<h3 className="text-sm font-semibold tracking-tight">
-									Lideres
+									Líderes
 								</h3>
-								<ShieldIcon className="size-4 text-muted-foreground" />
 								<Badge variant="outline" size="sm">
 									{sectorLeaders.length}
 								</Badge>
+								<div className="ml-auto">
+									{leaderPanelOpen ? (
+										<Button
+											size="xs"
+											variant="ghost"
+											onClick={handleCloseLeaderPanel}
+											className="gap-1 text-muted-foreground"
+										>
+											<XIcon className="size-3" />
+											Cancelar
+										</Button>
+									) : (
+										<Button
+											size="xs"
+											variant="outline"
+											onClick={handleOpenLeaderPanel}
+										>
+											Gestionar
+										</Button>
+									)}
+								</div>
 							</div>
 
-							<ScrollArea className="flex-1 max-md:max-h-[30vh]">
+							{leaderPanelOpen ? (
+								<LeaderEditPanel
+									leaderItems={leaderItems}
+									pendingIds={pendingLeaderIds}
+									onChange={setPendingLeaderIds}
+									onSave={handleSaveLeaders}
+									isSaving={isSavingLeaders}
+									onLeaderSearchChange={setLeaderSearch}
+								/>
+							) : null}
+
+							<ScrollArea className="flex-1 max-md:max-h-[28vh]">
 								{detailLoading ? (
 									<LeadersListSkeleton />
 								) : sectorLeaders.length > 0 ? (
@@ -222,7 +499,7 @@ export function DetailSectorDialog({
 												key={leader._id}
 												className="flex items-center gap-3 px-4 py-2.5"
 											>
-												<Avatar className="size-7">
+												<Avatar className="size-7 shrink-0">
 													<AvatarFallback
 														className={cn(
 															"text-[11px] font-semibold",
@@ -249,12 +526,7 @@ export function DetailSectorDialog({
 										))}
 									</ul>
 								) : (
-									<div className="flex flex-col items-center justify-center py-8 text-center">
-										<ShieldIcon className="size-6 text-muted-foreground/40 mb-1.5" />
-										<p className="text-sm text-muted-foreground">
-											Sin lideres asignados.
-										</p>
-									</div>
+									<EmptyLeaders onManage={handleOpenLeaderPanel} />
 								)}
 							</ScrollArea>
 						</div>
@@ -269,61 +541,9 @@ export function prefetchSectorDetailQueries(
 	queryClient: QueryClient,
 	sectorId: Id<"sectors">,
 ) {
-	const sectorDetailQuery = convexQuery(api.sectors.getSector, {
-		sectorId,
-	});
-
-	return queryClient.prefetchQuery(sectorDetailQuery);
-}
-
-function MembersTableSkeleton() {
-	return (
-		<div className="p-4 space-y-3">
-			<div className="flex gap-4">
-				<Skeleton className="h-4 w-32" />
-				<Skeleton className="h-4 w-24" />
-				<Skeleton className="h-4 w-40" />
-			</div>
-			<div className="flex gap-4">
-				<Skeleton className="h-4 w-28" />
-				<Skeleton className="h-4 w-24" />
-				<Skeleton className="h-4 w-36" />
-			</div>
-			<div className="flex gap-4">
-				<Skeleton className="h-4 w-36" />
-				<Skeleton className="h-4 w-24" />
-				<Skeleton className="h-4 w-32" />
-			</div>
-			<div className="flex gap-4">
-				<Skeleton className="h-4 w-30" />
-				<Skeleton className="h-4 w-24" />
-				<Skeleton className="h-4 w-44" />
-			</div>
-			<div className="flex gap-4">
-				<Skeleton className="h-4 w-34" />
-				<Skeleton className="h-4 w-24" />
-				<Skeleton className="h-4 w-38" />
-			</div>
-		</div>
-	);
-}
-
-function LeadersListSkeleton() {
-	return (
-		<div className="p-4 space-y-3">
-			{Array.from({ length: 4 }).map((_, index) => (
-				<div
-					// biome-ignore lint/suspicious/noArrayIndexKey: <Skeleton list>
-					key={`leader-skeleton-${index}`}
-					className="flex items-center gap-3"
-				>
-					<Skeleton className="size-7 rounded-full" />
-					<div className="space-y-1.5 flex-1">
-						<Skeleton className="h-3 w-32" />
-						<Skeleton className="h-3 w-44" />
-					</div>
-				</div>
-			))}
-		</div>
+	return queryClient.prefetchQuery(
+		convexQuery(api.sectors.getSector, {
+			sectorId,
+		}),
 	);
 }
