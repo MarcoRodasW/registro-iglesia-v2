@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { usersBySectorAndRole } from "./aggregates";
 import {
 	authedQuery,
 	adminQuery,
@@ -25,21 +26,6 @@ export const listUsers = adminQuery({
 	args: {},
 	handler: async (ctx) => {
 		return await ctx.db.query("users").order("desc").collect();
-	},
-});
-
-export const listLeaders = adminOrLeaderQuery({
-	args: {},
-	handler: async (ctx) => {
-		const users = await ctx.db.query("users").collect();
-		return users
-			.filter((u) => u.role === "admin" || u.role === "leader")
-			.map((u) => ({
-				_id: u._id,
-				name: u.name,
-				email: u.email,
-				sectorId: u.sectorId,
-			}));
 	},
 });
 
@@ -100,6 +86,13 @@ export const setUserRole = adminMutation({
 			role: args.role,
 			sectorId: args.role === "user" ? undefined : targetUser.sectorId,
 		});
+
+		const updatedUser = await ctx.db.get(args.userId);
+		if (!updatedUser) {
+			throw new Error("User not found");
+		}
+
+		await usersBySectorAndRole.replaceOrInsert(ctx, targetUser, updatedUser);
 		return args.userId;
 	},
 });
