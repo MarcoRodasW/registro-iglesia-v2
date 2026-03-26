@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { Route } from "@/routes/_authenticated/sectors";
 import { DeleteSectorAlert } from "./delete-sector-alert";
 import {
 	DetailSectorDialog,
@@ -35,6 +36,7 @@ import {
 
 export function SectorsGrid() {
 	const queryClient = useQueryClient();
+	const { user } = Route.useRouteContext();
 	const { data: sectors } = useSuspenseQuery(
 		convexQuery(api.sectors.listSectors, {}),
 	);
@@ -87,14 +89,16 @@ export function SectorsGrid() {
 										>
 											<EyeIcon className="size-4" />
 										</Button>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="size-8 text-destructive hover:text-destructive"
-											onClick={() => setSectorToDelete(sector)}
-										>
-											<Trash2Icon className="size-4" />
-										</Button>
+										{user && user.role === "admin" && (
+											<Button
+												variant="ghost"
+												size="icon"
+												className="size-8 text-destructive hover:text-destructive"
+												onClick={() => setSectorToDelete(sector)}
+											>
+												<Trash2Icon className="size-4" />
+											</Button>
+										)}
 									</div>
 								</div>
 							</CardHeader>
