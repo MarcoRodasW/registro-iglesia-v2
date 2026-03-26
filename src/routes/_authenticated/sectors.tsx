@@ -17,6 +17,10 @@ export const Route = createFileRoute("/_authenticated/sectors")({
 		if (user.role !== "admin" && user.role !== "leader") {
 			throw redirect({ to: "/members" });
 		}
+
+		return {
+			user,
+		};
 	},
 	loader: async ({ context }) => {
 		await context.queryClient.ensureQueryData(

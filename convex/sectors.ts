@@ -23,20 +23,48 @@ function mapLeader(user: Doc<"users">) {
 export const listSectors = adminOrLeaderQuery({
 	args: {},
 	handler: async (ctx) => {
-		const sectors = await ctx.db.query("sectors").collect();
+		if (ctx.appUser.role !== "admin") {
+			if (!ctx.appUser.sectorId) {
+				return [];
+			}
+
+			const sector = await ctx.db.get(ctx.appUser.sectorId);
+			if (!sector) {
+				return [];
+			}
+
+			const [memberCount, leaderCount] = await Promise.all([
+				membersBySector.count(ctx, { namespace: sector._id }),
+				countLeadersInSector(ctx, sector._id),
+			]);
+
+			return [
+				{
+					...sector,
+					memberCount,
+					leaderCount,
+				},
+			];
+		}
+
+		const visibleSectors = await ctx.db.query("sectors").collect();
+		if (visibleSectors.length === 0) {
+			return [];
+		}
+
 		const memberCounts = await membersBySector.countBatch(
 			ctx,
-			sectors.map((sector) => ({ namespace: sector._id })),
+			visibleSectors.map((sector) => ({ namespace: sector._id })),
 		);
 		const leaderAndAdminCounts = await usersBySectorAndRole.countBatch(
 			ctx,
-			sectors.flatMap((sector) => [
+			visibleSectors.flatMap((sector) => [
 				{ namespace: sector._id, bounds: roleBounds("leader") },
 				{ namespace: sector._id, bounds: roleBounds("admin") },
 			]),
 		);
 
-		const withCounts = sectors.map((sector, index) => ({
+		const withCounts = visibleSectors.map((sector, index) => ({
 			...sector,
 			memberCount: memberCounts[index] ?? 0,
 			leaderCount:
@@ -53,6 +81,13 @@ export const getSector = adminOrLeaderQuery({
 		sectorId: v.id("sectors"),
 	},
 		handler: async (ctx, args) => {
+			if (
+				ctx.appUser.role !== "admin" &&
+				ctx.appUser.sectorId !== args.sectorId
+			) {
+				return null;
+			}
+
 			const sector = await ctx.db.get(args.sectorId);
 			if (!sector) {
 				return null;

@@ -44,6 +44,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn, formatPhone } from "@/lib/utils";
+import { Route } from "@/routes/_authenticated/sectors";
 import {
 	EmptyLeaders,
 	EmptyMembers,
@@ -68,6 +69,7 @@ export function DetailSectorDialog({
 	open,
 	onOpenChange,
 }: DetailSectorDialogProps) {
+	const { user } = Route.useRouteContext();
 	const queryClient = useQueryClient();
 
 	const updateSectorMutation = useConvexMutation(api.sectors.updateSector);
@@ -455,27 +457,29 @@ export function DetailSectorDialog({
 								<Badge variant="outline" size="sm">
 									{sectorLeaders.length}
 								</Badge>
-								<div className="ml-auto">
-									{leaderPanelOpen ? (
-										<Button
-											size="xs"
-											variant="ghost"
-											onClick={handleCloseLeaderPanel}
-											className="gap-1 text-muted-foreground"
-										>
-											<XIcon className="size-3" />
-											Cancelar
-										</Button>
-									) : (
-										<Button
-											size="xs"
-											variant="outline"
-											onClick={handleOpenLeaderPanel}
-										>
-											Gestionar
-										</Button>
-									)}
-								</div>
+								{user && user.role === "admin" && (
+									<div className="ml-auto">
+										{leaderPanelOpen ? (
+											<Button
+												size="xs"
+												variant="ghost"
+												onClick={handleCloseLeaderPanel}
+												className="gap-1 text-muted-foreground"
+											>
+												<XIcon className="size-3" />
+												Cancelar
+											</Button>
+										) : (
+											<Button
+												size="xs"
+												variant="outline"
+												onClick={handleOpenLeaderPanel}
+											>
+												Gestionar
+											</Button>
+										)}
+									</div>
+								)}
 							</div>
 
 							{leaderPanelOpen ? (

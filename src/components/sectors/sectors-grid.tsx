@@ -190,7 +190,7 @@ export function EmptySectorGrid() {
 				</EmptyMedia>
 				<EmptyTitle>Sin sectores</EmptyTitle>
 				<EmptyDescription>
-					No hay sectores registrados en el sistema.
+					No hay sectores asignados o registrados en el sistema.
 				</EmptyDescription>
 			</EmptyHeader>
 		</Empty>
