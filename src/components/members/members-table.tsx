@@ -1,3 +1,12 @@
+import { api } from "@convex/api";
+import { convexQuery } from "@convex-dev/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import type {
+	ColumnDef,
+	Updater,
+	VisibilityState,
+} from "@tanstack/react-table";
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import {
 	ArrowUp,
 	EyeIcon,
@@ -5,8 +14,15 @@ import {
 	Trash2Icon,
 	UsersIcon,
 } from "lucide-react";
-import { useCallback, useState } from "react";
-
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+	ColumnVisibilityDropdown,
+	DataTable,
+	type RoleVisibilityConfig,
+	resolveColumnVisibility,
+	saveColumnVisibility,
+} from "@/components/data-table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -22,35 +38,148 @@ import {
 	InputGroupInput,
 } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
 import { type MemberData, useMembersList } from "@/hooks/use-members-list";
 import { formatPhone } from "@/lib/utils";
+
 import { DeleteMemberDialog } from "./delete-member-dialog";
 import { EditMemberDialog } from "./edit-member-dialog";
+
+const COLUMN_IDS = {
+	name: "name",
+	phone: "phone",
+	address: "address",
+	email: "email",
+	age: "age",
+	childrenCount: "childrenCount",
+	actions: "actions",
+} as const;
+
+const MEMBERS_TABLE_ID = "members-table";
+
+const MEMBERS_VISIBILITY_CONFIG: RoleVisibilityConfig = {
+	allColumnIds: Object.values(COLUMN_IDS),
+	alwaysVisible: [COLUMN_IDS.name, COLUMN_IDS.actions],
+	roles: {
+		admin: [
+			COLUMN_IDS.name,
+			COLUMN_IDS.phone,
+			COLUMN_IDS.address,
+			COLUMN_IDS.email,
+			COLUMN_IDS.age,
+			COLUMN_IDS.childrenCount,
+			COLUMN_IDS.actions,
+		],
+		user: [COLUMN_IDS.name, COLUMN_IDS.address, COLUMN_IDS.actions],
+	},
+};
+
+const COLUMN_LABELS: Record<string, string> = {
+	[COLUMN_IDS.name]: "Nombre",
+	[COLUMN_IDS.phone]: "Teléfono",
+	[COLUMN_IDS.address]: "Dirección",
+	[COLUMN_IDS.email]: "Email",
+	[COLUMN_IDS.age]: "Edad",
+	[COLUMN_IDS.childrenCount]: "Hijos",
+	[COLUMN_IDS.actions]: "Acciones",
+};
+
+function useMembersColumns(
+	onEdit: (member: MemberData) => void,
+	onDelete: (member: MemberData) => void,
+): ColumnDef<MemberData>[] {
+	return useMemo(
+		(): ColumnDef<MemberData>[] => [
+			{
+				id: COLUMN_IDS.name,
+				accessorKey: "fullName",
+				header: "Nombre",
+				cell: ({ getValue }) => (
+					<span className="font-medium">{getValue<string>()}</span>
+				),
+				enableHiding: false,
+			},
+			{
+				id: COLUMN_IDS.phone,
+				accessorKey: "phone",
+				header: "Teléfono",
+				cell: ({ getValue }) => formatPhone(getValue<string>()),
+			},
+			{
+				id: COLUMN_IDS.address,
+				accessorKey: "address",
+				header: "Dirección",
+			},
+			{
+				id: COLUMN_IDS.email,
+				accessorKey: "email",
+				header: "Email",
+				cell: ({ getValue }) => getValue<string>() || "-",
+			},
+			{
+				id: COLUMN_IDS.age,
+				accessorKey: "age",
+				header: "Edad",
+				cell: ({ getValue }) => getValue<number | null>() ?? "-",
+			},
+			{
+				id: COLUMN_IDS.childrenCount,
+				accessorKey: "childrenCount",
+				header: "Hijos",
+				cell: ({ getValue }) => getValue<number | null>() ?? "-",
+			},
+			{
+				id: COLUMN_IDS.actions,
+				header: () => <span className="sr-only">Acciones</span>,
+				meta: {
+					headerClassName: "text-right",
+					cellClassName: "text-right",
+				},
+				enableHiding: false,
+				cell: ({ row }) => {
+					const member = row.original;
+					return (
+						<div className="flex justify-end gap-1">
+							<Button
+								variant="ghost"
+								size="icon-xs"
+								onClick={() => onEdit(member)}
+								aria-label="Ver"
+							>
+								<EyeIcon className="size-4" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon-xs"
+								onClick={() => onDelete(member)}
+								aria-label="Eliminar"
+							>
+								<Trash2Icon className="size-4" />
+							</Button>
+						</div>
+					);
+				},
+			},
+		],
+		[onEdit, onDelete],
+	);
+}
 
 export function MembersTable() {
 	const {
 		members,
 		totalCount,
 		isLoading,
-		isFetchingNextPage,
-		hasNextPage,
-		fetchNextPage,
 		search,
 		setSearch,
 		showJumpToTop,
 		handleJumpToTop,
-		loadMoreRef,
-		totalLoaded,
+		filteredCount,
 	} = useMembersList();
+
+	const { data: currentUser } = useSuspenseQuery(
+		convexQuery(api.users.getCurrentUserWithRole, {}),
+	);
+	const role = currentUser?.role ?? "user";
 
 	const [editMember, setEditMember] = useState<MemberData | null>(null);
 	const [deleteMember, setDeleteMember] = useState<MemberData | null>(null);
@@ -63,99 +192,88 @@ export function MembersTable() {
 		setDeleteMember(member);
 	}, []);
 
-	const handleLoadMore = () => {
-		if (hasNextPage && !isFetchingNextPage) {
-			fetchNextPage();
-		}
-	};
+	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
+		() =>
+			resolveColumnVisibility(
+				role,
+				MEMBERS_TABLE_ID,
+				MEMBERS_VISIBILITY_CONFIG,
+			),
+	);
+
+	useEffect(() => {
+		setColumnVisibility(
+			resolveColumnVisibility(
+				role,
+				MEMBERS_TABLE_ID,
+				MEMBERS_VISIBILITY_CONFIG,
+			),
+		);
+	}, [role]);
+
+	const handleColumnVisibilityChange = useCallback(
+		(updaterOrValue: Updater<VisibilityState>) => {
+			setColumnVisibility((prev) => {
+				const next =
+					typeof updaterOrValue === "function"
+						? updaterOrValue(prev)
+						: updaterOrValue;
+				saveColumnVisibility(MEMBERS_TABLE_ID, role, next);
+				return next;
+			});
+		},
+		[role],
+	);
+
+	const columns = useMembersColumns(handleEditOpen, handleDeleteOpen);
+
+	const table = useReactTable({
+		data: members,
+		columns,
+		getCoreRowModel: getCoreRowModel(),
+		state: { columnVisibility },
+		onColumnVisibilityChange: handleColumnVisibilityChange,
+		getRowId: (row) => row._id,
+	});
 
 	return (
 		<Card>
 			<CardHeader>
 				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-					<CardTitle>Listado de Miembros</CardTitle>
-					<InputGroup className="w-full sm:w-64">
-						<InputGroupAddon align="inline-start">
-							<SearchIcon />
-						</InputGroupAddon>
-						<InputGroupInput
-							placeholder="Buscar por nombre..."
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
+					<div className="flex items-center gap-3">
+						<CardTitle>Listado de Miembros</CardTitle>
+						{totalCount > 0 && (
+							<Badge variant="info" size="lg">
+								<UsersIcon className="size-3.5" />
+								{filteredCount} de {totalCount}
+							</Badge>
+						)}
+					</div>
+					<div className="flex items-center gap-2">
+						<InputGroup className="w-full sm:w-64">
+							<InputGroupAddon align="inline-start">
+								<SearchIcon />
+							</InputGroupAddon>
+							<InputGroupInput
+								placeholder="Buscar por nombre..."
+								value={search}
+								onChange={(e) => setSearch(e.target.value)}
+							/>
+						</InputGroup>
+						<ColumnVisibilityDropdown
+							table={table}
+							columnLabels={COLUMN_LABELS}
 						/>
-					</InputGroup>
+					</div>
 				</div>
 			</CardHeader>
 			<CardContent>
-				{isLoading && totalLoaded === 0 ? (
+				{isLoading && totalCount === 0 ? (
 					<TableSkeleton />
 				) : members.length === 0 ? (
 					<EmptyState search={search} />
 				) : (
-					<>
-						<div className="overflow-x-auto">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Nombre</TableHead>
-										<TableHead>Teléfono</TableHead>
-										<TableHead className="hidden md:table-cell">
-											Dirección
-										</TableHead>
-										<TableHead className="hidden lg:table-cell">
-											Email
-										</TableHead>
-										<TableHead className="hidden lg:table-cell">Edad</TableHead>
-										<TableHead className="hidden xl:table-cell">
-											Hijos
-										</TableHead>
-										<TableHead className="text-right">Acciones</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{members.map((member) => (
-										<MemberRow
-											key={member._id}
-											member={member}
-											onEdit={handleEditOpen}
-											onDelete={handleDeleteOpen}
-										/>
-									))}
-									{isFetchingNextPage && <TableSkeletonRows />}
-								</TableBody>
-							</Table>
-						</div>
-
-						<div className="flex flex-col items-center gap-4 mt-6">
-							<p className="text-sm text-muted-foreground">
-								Mostrando {totalLoaded} de {totalCount} miembros
-							</p>
-
-							{hasNextPage ? (
-								<Button
-									onClick={handleLoadMore}
-									disabled={isFetchingNextPage}
-									variant="outline"
-									size="default"
-								>
-									{isFetchingNextPage ? (
-										<>
-											<Spinner className="size-4 mr-2" />
-											Cargando...
-										</>
-									) : (
-										"Cargar más miembros"
-									)}
-								</Button>
-							) : (
-								<p className="text-sm text-muted-foreground">
-									No hay más miembros para cargar
-								</p>
-							)}
-						</div>
-
-						<div ref={loadMoreRef} className="h-4" />
-					</>
+					<DataTable table={table} />
 				)}
 			</CardContent>
 
@@ -193,82 +311,15 @@ export function MembersTable() {
 	);
 }
 
-interface MemberRowProps {
-	member: MemberData;
-	onEdit: (member: MemberData) => void;
-	onDelete: (member: MemberData) => void;
-}
-
-function MemberRow({ member, onEdit, onDelete }: MemberRowProps) {
-	return (
-		<TableRow>
-			<TableCell className="font-medium">{member.fullName}</TableCell>
-			<TableCell>{formatPhone(member.phone)}</TableCell>
-			<TableCell className="hidden md:table-cell">{member.address}</TableCell>
-			<TableCell className="hidden lg:table-cell">
-				{member.email || "-"}
-			</TableCell>
-			<TableCell className="hidden lg:table-cell">
-				{member.age ?? "-"}
-			</TableCell>
-			<TableCell className="hidden xl:table-cell">
-				{member.childrenCount ?? "-"}
-			</TableCell>
-			<TableCell className="text-right">
-				<div className="flex justify-end gap-1">
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						onClick={() => onEdit(member)}
-						aria-label="Ver"
-					>
-						<EyeIcon className="size-4" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						onClick={() => onDelete(member)}
-						aria-label="Eliminar"
-					>
-						<Trash2Icon className="size-4" />
-					</Button>
-				</div>
-			</TableCell>
-		</TableRow>
-	);
-}
-
 function TableSkeleton() {
 	return (
 		<div className="space-y-3">
-			<Skeleton key="table-skeleton-1" className="h-12 w-full" />
-			<Skeleton key="table-skeleton-2" className="h-12 w-full" />
-			<Skeleton key="table-skeleton-3" className="h-12 w-full" />
-			<Skeleton key="table-skeleton-4" className="h-12 w-full" />
-			<Skeleton key="table-skeleton-5" className="h-12 w-full" />
+			<Skeleton className="h-12 w-full" />
+			<Skeleton className="h-12 w-full" />
+			<Skeleton className="h-12 w-full" />
+			<Skeleton className="h-12 w-full" />
+			<Skeleton className="h-12 w-full" />
 		</div>
-	);
-}
-
-function TableSkeletonRows() {
-	return (
-		<>
-			<TableRow key="skeleton-row-1">
-				<TableCell colSpan={7}>
-					<Skeleton className="h-10 w-full" />
-				</TableCell>
-			</TableRow>
-			<TableRow key="skeleton-row-2">
-				<TableCell colSpan={7}>
-					<Skeleton className="h-10 w-full" />
-				</TableCell>
-			</TableRow>
-			<TableRow key="skeleton-row-3">
-				<TableCell colSpan={7}>
-					<Skeleton className="h-10 w-full" />
-				</TableCell>
-			</TableRow>
-		</>
 	);
 }
 

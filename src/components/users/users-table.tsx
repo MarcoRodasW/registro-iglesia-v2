@@ -1,13 +1,16 @@
 import { api } from "@convex/api";
+import type { Doc, Id } from "@convex/dataModel";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
 import {
 	useMutation,
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { ShieldIcon, UserIcon, UsersIcon } from "lucide-react";
-import { useState } from "react";
-
+import { useCallback, useMemo, useState } from "react";
+import { DataTable } from "@/components/data-table";
 import {
 	AlertDialog,
 	AlertDialogClose,
@@ -35,23 +38,99 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
 import { toastManager } from "@/components/ui/toast";
 
 type UserRole = "admin" | "user";
+type UserData = Doc<"users">;
+type UserId = Id<"users">;
+
+const roleLabel = (role: UserRole) => (role === "admin" ? "Admin" : "Usuario");
 
 interface PendingRoleChange {
-	userId: string;
+	userId: UserId;
 	userName: string;
 	currentRole: UserRole;
 	newRole: UserRole;
+}
+
+function useUsersColumns(
+	currentAppUserId: string | null,
+	onRoleChangeRequest: (
+		userId: UserId,
+		userName: string,
+		currentRole: UserRole,
+		newRole: UserRole,
+	) => void,
+	isRoleMutationPending: boolean,
+): ColumnDef<UserData>[] {
+	return useMemo(
+		(): ColumnDef<UserData>[] => [
+			{
+				id: "name",
+				accessorKey: "name",
+				header: "Nombre",
+				cell: ({ row }) => {
+					const user = row.original;
+					const isSelf = currentAppUserId === user._id;
+					return (
+						<div className="flex items-center gap-2 font-medium">
+							{user.role === "admin" ? (
+								<ShieldIcon className="size-4 text-amber-500" />
+							) : (
+								<UserIcon className="size-4 text-muted-foreground" />
+							)}
+							{user.name}
+							{isSelf && (
+								<Badge variant="outline" size="sm">
+									Tu
+								</Badge>
+							)}
+						</div>
+					);
+				},
+			},
+			{
+				id: "email",
+				accessorKey: "email",
+				header: "Email",
+			},
+			{
+				id: "role",
+				accessorKey: "role",
+				header: "Rol",
+				cell: ({ getValue }) => {
+					const role = getValue<UserRole>();
+					return (
+						<Badge variant={role === "admin" ? "warning" : "secondary"}>
+							{role === "admin" ? "Admin" : "Usuario"}
+						</Badge>
+					);
+				},
+			},
+			{
+				id: "changeRole",
+				header: () => <span className="sr-only">Cambiar Rol</span>,
+				meta: {
+					headerClassName: "text-right",
+					cellClassName: "text-right",
+				},
+				cell: ({ row }) => {
+					const user = row.original;
+					const isSelf = currentAppUserId === user._id;
+					return (
+						<RoleSelect
+							currentRole={user.role}
+							disabled={isSelf || isRoleMutationPending}
+							onRoleChange={(newRole) =>
+								onRoleChangeRequest(user._id, user.name, user.role, newRole)
+							}
+						/>
+					);
+				},
+			},
+		],
+		[currentAppUserId, onRoleChangeRequest, isRoleMutationPending],
+	);
 }
 
 export function UsersTable() {
@@ -72,12 +151,14 @@ export function UsersTable() {
 	const setUserRole = useMutation({
 		mutationFn: setUserRoleMutation,
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({
-				queryKey: convexQuery(api.users.listUsers, {}).queryKey,
-			});
-			await queryClient.invalidateQueries({
-				queryKey: convexQuery(api.users.getCurrentUserWithRole, {}).queryKey,
-			});
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: convexQuery(api.users.listUsers, {}).queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: convexQuery(api.users.getCurrentUserWithRole, {}).queryKey,
+				}),
+			]);
 			toastManager.add({
 				title: "Rol actualizado",
 				type: "success",
@@ -94,30 +175,41 @@ export function UsersTable() {
 		},
 	});
 
-	const handleRoleChangeRequest = (
-		userId: string,
-		userName: string,
-		currentRole: UserRole,
-		newRole: UserRole,
-	) => {
-		setPendingChange({ userId, userName, currentRole, newRole });
-		setConfirmOpen(true);
-	};
+	const handleRoleChangeRequest = useCallback(
+		(
+			userId: UserId,
+			userName: string,
+			currentRole: UserRole,
+			newRole: UserRole,
+		) => {
+			setPendingChange({ userId, userName, currentRole, newRole });
+			setConfirmOpen(true);
+		},
+		[],
+	);
 
-	const handleConfirmRoleChange = () => {
+	const handleConfirmRoleChange = useCallback(() => {
 		if (!pendingChange) return;
 		setUserRole.mutate({
-			userId: pendingChange.userId as Parameters<
-				typeof setUserRoleMutation
-			>[0]["userId"],
+			userId: pendingChange.userId,
 			role: pendingChange.newRole,
 		});
 		setConfirmOpen(false);
 		setPendingChange(null);
-	};
+	}, [pendingChange, setUserRole]);
 
-	const roleLabel = (role: UserRole) =>
-		role === "admin" ? "Admin" : "Usuario";
+	const columns = useUsersColumns(
+		currentUser?.appUserId ?? null,
+		handleRoleChangeRequest,
+		setUserRole.isPending,
+	);
+
+	const table = useReactTable({
+		data: users ?? [],
+		columns,
+		getCoreRowModel: getCoreRowModel(),
+		getRowId: (row) => row._id,
+	});
 
 	return (
 		<>
@@ -139,66 +231,7 @@ export function UsersTable() {
 							</EmptyHeader>
 						</Empty>
 					) : (
-						<div className="overflow-x-auto">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Nombre</TableHead>
-										<TableHead>Email</TableHead>
-										<TableHead>Rol</TableHead>
-										<TableHead className="text-right">Cambiar Rol</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{users.map((user) => {
-										const isSelf = currentUser?.appUserId === user._id;
-										return (
-											<TableRow key={user._id}>
-												<TableCell className="font-medium">
-													<div className="flex items-center gap-2">
-														{user.role === "admin" ? (
-															<ShieldIcon className="size-4 text-amber-500" />
-														) : (
-															<UserIcon className="size-4 text-muted-foreground" />
-														)}
-														{user.name}
-														{isSelf && (
-															<Badge variant="outline" size="sm">
-																Tú
-															</Badge>
-														)}
-													</div>
-												</TableCell>
-												<TableCell>{user.email}</TableCell>
-												<TableCell>
-													<Badge
-														variant={
-															user.role === "admin" ? "warning" : "secondary"
-														}
-													>
-														{roleLabel(user.role)}
-													</Badge>
-												</TableCell>
-												<TableCell className="text-right">
-													<RoleSelect
-														currentRole={user.role}
-														disabled={isSelf || setUserRole.isPending}
-														onRoleChange={(newRole) =>
-															handleRoleChangeRequest(
-																user._id,
-																user.name,
-																user.role,
-																newRole,
-															)
-														}
-													/>
-												</TableCell>
-											</TableRow>
-										);
-									})}
-								</TableBody>
-							</Table>
-						</div>
+						<DataTable table={table} />
 					)}
 				</CardContent>
 			</Card>
@@ -226,13 +259,13 @@ export function UsersTable() {
 									{pendingChange.newRole === "admin" && (
 										<span className="block mt-2 text-amber-600 dark:text-amber-400">
 											Los administradores tienen acceso completo al sistema,
-											incluyendo la gestión de usuarios.
+											incluyendo la gestion de usuarios.
 										</span>
 									)}
 									{pendingChange.currentRole === "admin" &&
 										pendingChange.newRole === "user" && (
 											<span className="block mt-2 text-amber-600 dark:text-amber-400">
-												Este usuario perderá todos los permisos de
+												Este usuario perdera todos los permisos de
 												administrador.
 											</span>
 										)}
@@ -263,7 +296,7 @@ function RoleSelect({
 }) {
 	return (
 		<Select
-			defaultValue={currentRole}
+			value={currentRole}
 			onValueChange={(value) => {
 				if (value !== currentRole) {
 					onRoleChange(value as UserRole);
