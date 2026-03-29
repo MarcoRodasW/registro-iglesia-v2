@@ -38,8 +38,6 @@ import {
 	InputGroupInput,
 } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
-import { TableCell, TableRow } from "@/components/ui/table";
 import { type MemberData, useMembersList } from "@/hooks/use-members-list";
 import { formatPhone } from "@/lib/utils";
 
@@ -171,15 +169,11 @@ export function MembersTable() {
 		members,
 		totalCount,
 		isLoading,
-		isFetchingNextPage,
-		hasNextPage,
-		fetchNextPage,
 		search,
 		setSearch,
 		showJumpToTop,
 		handleJumpToTop,
-		loadMoreRef,
-		totalLoaded,
+		filteredCount,
 	} = useMembersList();
 
 	const { data: currentUser } = useSuspenseQuery(
@@ -197,12 +191,6 @@ export function MembersTable() {
 	const handleDeleteOpen = useCallback((member: MemberData) => {
 		setDeleteMember(member);
 	}, []);
-
-	const handleLoadMore = useCallback(() => {
-		if (hasNextPage && !isFetchingNextPage) {
-			fetchNextPage();
-		}
-	}, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
 		() =>
@@ -248,8 +236,6 @@ export function MembersTable() {
 		getRowId: (row) => row._id,
 	});
 
-	const visibleColumnCount = table.getVisibleLeafColumns().length;
-
 	return (
 		<Card>
 			<CardHeader>
@@ -259,7 +245,7 @@ export function MembersTable() {
 						{totalCount > 0 && (
 							<Badge variant="info" size="lg">
 								<UsersIcon className="size-3.5" />
-								{totalLoaded} de {totalCount}
+								{filteredCount} de {totalCount}
 							</Badge>
 						)}
 					</div>
@@ -282,43 +268,12 @@ export function MembersTable() {
 				</div>
 			</CardHeader>
 			<CardContent>
-				{isLoading && totalLoaded === 0 ? (
+				{isLoading && totalCount === 0 ? (
 					<TableSkeleton />
 				) : members.length === 0 ? (
 					<EmptyState search={search} />
 				) : (
-					<>
-						<DataTable
-							table={table}
-							footerRows={
-								isFetchingNextPage ? (
-									<TableSkeletonRows colSpan={visibleColumnCount} />
-								) : null
-							}
-						/>
-
-						{hasNextPage && (
-							<div className="flex justify-center mt-4">
-								<Button
-									onClick={handleLoadMore}
-									disabled={isFetchingNextPage}
-									variant="outline"
-									size="default"
-								>
-									{isFetchingNextPage ? (
-										<>
-											<Spinner className="size-4 mr-2" />
-											Cargando...
-										</>
-									) : (
-										"Cargar más miembros"
-									)}
-								</Button>
-							</div>
-						)}
-
-						<div ref={loadMoreRef} className="h-1" />
-					</>
+					<DataTable table={table} />
 				)}
 			</CardContent>
 
@@ -365,28 +320,6 @@ function TableSkeleton() {
 			<Skeleton className="h-12 w-full" />
 			<Skeleton className="h-12 w-full" />
 		</div>
-	);
-}
-
-function TableSkeletonRows({ colSpan }: { colSpan: number }) {
-	return (
-		<>
-			<TableRow>
-				<TableCell colSpan={colSpan}>
-					<Skeleton className="h-10 w-full" />
-				</TableCell>
-			</TableRow>
-			<TableRow>
-				<TableCell colSpan={colSpan}>
-					<Skeleton className="h-10 w-full" />
-				</TableCell>
-			</TableRow>
-			<TableRow>
-				<TableCell colSpan={colSpan}>
-					<Skeleton className="h-10 w-full" />
-				</TableCell>
-			</TableRow>
-		</>
 	);
 }
 

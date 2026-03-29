@@ -1,84 +1,52 @@
 import { api } from "@convex/api";
 import type { Doc } from "@convex/dataModel";
-import { usePaginatedQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useInView } from "react-intersection-observer";
+import { convexQuery } from "@convex-dev/react-query";
+import { useQuery } from "@tanstack/react-query";
+import {
+	useCallback,
+	useDeferredValue,
+	useEffect,
+	useMemo,
+	useState,
+} from "react";
 
 export type MemberData = Doc<"members">;
 export interface UseMembersListReturn {
 	members: MemberData[];
 	totalCount: number;
 	isLoading: boolean;
-	isFetchingNextPage: boolean;
-	hasNextPage: boolean;
-	fetchNextPage: () => void;
 	error: Error | null;
 	search: string;
 	setSearch: (value: string) => void;
-	debouncedSearch: string;
 	showJumpToTop: boolean;
 	handleJumpToTop: () => void;
-	loadMoreRef: (node?: Element | null) => void;
-	totalLoaded: number;
+	filteredCount: number;
 }
-
-const PAGE_SIZE = 25;
 
 export function useMembersList(): UseMembersListReturn {
 	const [search, setSearch] = useState("");
-	const [debouncedSearch, setDebouncedSearch] = useState("");
 	const [showJumpToTop, setShowJumpToTop] = useState(false);
+	const deferredSearch = useDeferredValue(search);
+	const normalizedSearch = deferredSearch.trim().toLowerCase();
 
-	useEffect(() => {
-		const timer = setTimeout(() => {
-			setDebouncedSearch(search);
-		}, 300);
-		return () => clearTimeout(timer);
-	}, [search]);
+	const {
+		data: allMembers = [],
+		isLoading,
+		error,
+	} = useQuery(convexQuery(api.members.list, {}));
 
-	const queryArgs = useMemo(
-		() => ({ search: debouncedSearch || undefined }),
-		[debouncedSearch],
+	const members = useMemo(
+		() =>
+			normalizedSearch
+				? allMembers.filter((member) =>
+						member.fullName.toLowerCase().includes(normalizedSearch),
+					)
+				: allMembers,
+		[allMembers, normalizedSearch],
 	);
-	const { results, status, loadMore } = usePaginatedQuery(
-		api.members.list,
-		queryArgs,
-		{ initialNumItems: PAGE_SIZE },
-	);
 
-	const isLoading = status === "LoadingFirstPage";
-	const isFetchingNextPage = status === "LoadingMore";
-	const hasNextPage = status === "CanLoadMore";
-	const fetchNextPage = useCallback(() => {
-		loadMore(PAGE_SIZE);
-	}, [loadMore]);
-
-	const allMembers = results ?? [];
-	const { ref: loadMoreRef, inView } = useInView({
-		threshold: 0,
-		rootMargin: "100px",
-	});
-
-	const totalLoaded = allMembers.length;
-	const totalCount = hasNextPage ? totalLoaded + PAGE_SIZE : totalLoaded;
-	useEffect(() => {
-		if (
-			inView &&
-			!debouncedSearch &&
-			totalLoaded === 0 &&
-			hasNextPage &&
-			!isFetchingNextPage
-		) {
-			fetchNextPage();
-		}
-	}, [
-		inView,
-		debouncedSearch,
-		totalLoaded,
-		hasNextPage,
-		isFetchingNextPage,
-		fetchNextPage,
-	]);
+	const totalCount = allMembers.length;
+	const filteredCount = members.length;
 
 	useEffect(() => {
 		const handleScroll = () => {
@@ -93,19 +61,14 @@ export function useMembersList(): UseMembersListReturn {
 	}, []);
 
 	return {
-		members: allMembers,
+		members,
 		totalCount,
 		isLoading,
-		isFetchingNextPage,
-		hasNextPage: hasNextPage ?? false,
-		fetchNextPage,
-		error: null,
+		error: error ?? null,
 		search,
 		setSearch,
-		debouncedSearch,
 		showJumpToTop,
 		handleJumpToTop,
-		loadMoreRef,
-		totalLoaded,
+		filteredCount,
 	};
 }
