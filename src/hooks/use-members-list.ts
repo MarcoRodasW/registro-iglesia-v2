@@ -1,7 +1,7 @@
 import { api } from "@convex/api";
 import type { Doc } from "@convex/dataModel";
 import { usePaginatedQuery } from "convex/react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInView } from "react-intersection-observer";
 
 export type MemberData = Doc<"members">;
@@ -49,9 +49,9 @@ export function useMembersList(): UseMembersListReturn {
 	const isLoading = status === "LoadingFirstPage";
 	const isFetchingNextPage = status === "LoadingMore";
 	const hasNextPage = status === "CanLoadMore";
-	const fetchNextPage = () => {
+	const fetchNextPage = useCallback(() => {
 		loadMore(PAGE_SIZE);
-	};
+	}, [loadMore]);
 
 	const allMembers = results ?? [];
 	const { ref: loadMoreRef, inView } = useInView({
@@ -84,13 +84,13 @@ export function useMembersList(): UseMembersListReturn {
 		const handleScroll = () => {
 			setShowJumpToTop(window.scrollY > 300);
 		};
-		window.addEventListener("scroll", handleScroll);
+		window.addEventListener("scroll", handleScroll, { passive: true });
 		return () => window.removeEventListener("scroll", handleScroll);
 	}, []);
 
-	const handleJumpToTop = () => {
+	const handleJumpToTop = useCallback(() => {
 		window.scrollTo({ top: 0, behavior: "smooth" });
-	};
+	}, []);
 
 	return {
 		members: allMembers,
