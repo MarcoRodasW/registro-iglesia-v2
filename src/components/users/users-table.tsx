@@ -1,13 +1,16 @@
 import { api } from "@convex/api";
+import type { Doc, Id } from "@convex/dataModel";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
 import {
 	useMutation,
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { CrownIcon, ShieldIcon, UserIcon, UsersIcon } from "lucide-react";
-import { useState } from "react";
-
+import { useCallback, useMemo, useState } from "react";
+import { DataTable } from "@/components/data-table";
 import {
 	AlertDialog,
 	AlertDialogClose,
@@ -35,24 +38,12 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
 import { toastManager } from "@/components/ui/toast";
 
 type UserRole = "admin" | "leader" | "user";
-
-interface PendingRoleChange {
-	userId: string;
-	userName: string;
-	currentRole: UserRole;
-	newRole: UserRole;
-}
+type UserData = Doc<"users">;
+type UserId = Id<"users">;
+type SectorId = Id<"sectors">;
 
 const ROLE_LABELS = {
 	admin: "Admin",
@@ -60,10 +51,135 @@ const ROLE_LABELS = {
 	user: "Usuario",
 } as const;
 
+const roleLabel = (role: UserRole) => ROLE_LABELS[role];
+
+function isUserRole(value: string | null): value is UserRole {
+	return value === "admin" || value === "leader" || value === "user";
+}
+
+interface PendingRoleChange {
+	userId: UserId;
+	userName: string;
+	currentRole: UserRole;
+	newRole: UserRole;
+}
+
+function useUsersColumns(
+	currentAppUserId: string | null,
+	sectorNameById: Map<SectorId, string>,
+	onRoleChangeRequest: (
+		userId: UserId,
+		userName: string,
+		currentRole: UserRole,
+		newRole: UserRole,
+	) => void,
+	isRoleMutationPending: boolean,
+): ColumnDef<UserData>[] {
+	return useMemo(
+		(): ColumnDef<UserData>[] => [
+			{
+				id: "name",
+				accessorKey: "name",
+				header: "Nombre",
+				cell: ({ row }) => {
+					const user = row.original;
+					const isSelf = currentAppUserId === user._id;
+					return (
+						<div className="flex items-center gap-2 font-medium">
+							{user.role === "admin" ? (
+								<ShieldIcon className="size-4 text-amber-500" />
+							) : user.role === "leader" ? (
+								<CrownIcon className="size-4 text-violet-500" />
+							) : (
+								<UserIcon className="size-4 text-muted-foreground" />
+							)}
+							{user.name}
+							{isSelf && (
+								<Badge variant="outline" size="sm">
+									Tú
+								</Badge>
+							)}
+						</div>
+					);
+				},
+			},
+			{
+				id: "email",
+				accessorKey: "email",
+				header: "Email",
+			},
+			{
+				id: "sector",
+				accessorKey: "sectorId",
+				header: "Sector",
+				cell: ({ getValue }) => {
+					const sectorId = getValue<UserData["sectorId"]>();
+					if (!sectorId) {
+						return <span className="text-muted-foreground">Sin sector</span>;
+					}
+
+					return sectorNameById.get(sectorId) ?? "Sector no disponible";
+				},
+			},
+			{
+				id: "role",
+				accessorKey: "role",
+				header: "Rol",
+				cell: ({ getValue }) => {
+					const role = getValue<UserRole>();
+					return (
+						<Badge
+							variant={
+								role === "admin"
+									? "warning"
+									: role === "leader"
+										? "default"
+										: "secondary"
+							}
+						>
+							{roleLabel(role)}
+						</Badge>
+					);
+				},
+			},
+			{
+				id: "changeRole",
+				header: () => <span className="sr-only">Cambiar rol</span>,
+				meta: {
+					headerClassName: "text-right",
+					cellClassName: "text-right",
+				},
+				cell: ({ row }) => {
+					const user = row.original;
+					const isSelf = currentAppUserId === user._id;
+					return (
+						<RoleSelect
+							currentRole={user.role}
+							disabled={isSelf || isRoleMutationPending}
+							onRoleChange={(newRole) =>
+								onRoleChangeRequest(user._id, user.name, user.role, newRole)
+							}
+						/>
+					);
+				},
+			},
+		],
+		[
+			currentAppUserId,
+			sectorNameById,
+			onRoleChangeRequest,
+			isRoleMutationPending,
+		],
+	);
+}
+
 export function UsersTable() {
 	const queryClient = useQueryClient();
 	const { data: users } = useSuspenseQuery(
 		convexQuery(api.users.listUsers, {}),
+	);
+	const { data: sectors } = useSuspenseQuery(
+		convexQuery(api.sectors.listSectors, {}),
 	);
 	const { data: currentUser } = useSuspenseQuery(
 		convexQuery(api.users.getCurrentUserWithRole, {}),
@@ -78,12 +194,14 @@ export function UsersTable() {
 	const setUserRole = useMutation({
 		mutationFn: setUserRoleMutation,
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({
-				queryKey: convexQuery(api.users.listUsers, {}).queryKey,
-			});
-			await queryClient.invalidateQueries({
-				queryKey: convexQuery(api.users.getCurrentUserWithRole, {}).queryKey,
-			});
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: convexQuery(api.users.listUsers, {}).queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: convexQuery(api.users.getCurrentUserWithRole, {}).queryKey,
+				}),
+			]);
 			toastManager.add({
 				title: "Rol actualizado",
 				type: "success",
@@ -100,29 +218,47 @@ export function UsersTable() {
 		},
 	});
 
-	const handleRoleChangeRequest = (
-		userId: string,
-		userName: string,
-		currentRole: UserRole,
-		newRole: UserRole,
-	) => {
-		setPendingChange({ userId, userName, currentRole, newRole });
-		setConfirmOpen(true);
-	};
+	const handleRoleChangeRequest = useCallback(
+		(
+			userId: UserId,
+			userName: string,
+			currentRole: UserRole,
+			newRole: UserRole,
+		) => {
+			setPendingChange({ userId, userName, currentRole, newRole });
+			setConfirmOpen(true);
+		},
+		[],
+	);
 
-	const handleConfirmRoleChange = () => {
+	const handleConfirmRoleChange = useCallback(() => {
 		if (!pendingChange) return;
 		setUserRole.mutate({
-			userId: pendingChange.userId as Parameters<
-				typeof setUserRoleMutation
-			>[0]["userId"],
+			userId: pendingChange.userId,
 			role: pendingChange.newRole,
 		});
 		setConfirmOpen(false);
 		setPendingChange(null);
-	};
+	}, [pendingChange, setUserRole]);
 
-	const roleLabel = (role: UserRole) => ROLE_LABELS[role];
+	const sectorNameById = useMemo(
+		() => new Map(sectors.map((sector) => [sector._id, sector.name] as const)),
+		[sectors],
+	);
+
+	const columns = useUsersColumns(
+		currentUser?.appUserId ?? null,
+		sectorNameById,
+		handleRoleChangeRequest,
+		setUserRole.isPending,
+	);
+
+	const table = useReactTable({
+		data: users,
+		columns,
+		getCoreRowModel: getCoreRowModel(),
+		getRowId: (row) => row._id,
+	});
 
 	return (
 		<>
@@ -131,7 +267,7 @@ export function UsersTable() {
 					<CardTitle>Gestionar Usuarios</CardTitle>
 				</CardHeader>
 				<CardContent>
-					{!users || users.length === 0 ? (
+					{users.length === 0 ? (
 						<Empty>
 							<EmptyHeader>
 								<EmptyMedia variant="icon">
@@ -144,72 +280,7 @@ export function UsersTable() {
 							</EmptyHeader>
 						</Empty>
 					) : (
-						<div className="overflow-x-auto">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Nombre</TableHead>
-										<TableHead>Email</TableHead>
-										<TableHead>Rol</TableHead>
-										<TableHead className="text-right">Cambiar Rol</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{users.map((user) => {
-										const isSelf = currentUser?.appUserId === user._id;
-										return (
-											<TableRow key={user._id}>
-												<TableCell className="font-medium">
-													<div className="flex items-center gap-2">
-														{user.role === "admin" ? (
-															<ShieldIcon className="size-4 text-amber-500" />
-														) : user.role === "leader" ? (
-															<CrownIcon className="size-4 text-purple-500" />
-														) : (
-															<UserIcon className="size-4 text-muted-foreground" />
-														)}
-														{user.name}
-														{isSelf && (
-															<Badge variant="outline" size="sm">
-																Tú
-															</Badge>
-														)}
-													</div>
-												</TableCell>
-												<TableCell>{user.email}</TableCell>
-												<TableCell>
-													<Badge
-														variant={
-															user.role === "admin"
-																? "warning"
-																: user.role === "leader"
-																	? "default"
-																	: "secondary"
-														}
-													>
-														{roleLabel(user.role)}
-													</Badge>
-												</TableCell>
-												<TableCell className="text-right">
-													<RoleSelect
-														currentRole={user.role}
-														disabled={isSelf || setUserRole.isPending}
-														onRoleChange={(newRole) =>
-															handleRoleChangeRequest(
-																user._id,
-																user.name,
-																user.role,
-																newRole,
-															)
-														}
-													/>
-												</TableCell>
-											</TableRow>
-										);
-									})}
-								</TableBody>
-							</Table>
-						</div>
+						<DataTable table={table} />
 					)}
 				</CardContent>
 			</Card>
@@ -235,20 +306,20 @@ export function UsersTable() {
 									</span>
 									?
 									{pendingChange.newRole === "admin" && (
-										<span className="block mt-2 text-amber-600 dark:text-amber-400">
+										<span className="mt-2 block text-amber-600 dark:text-amber-400">
 											Los administradores tienen acceso completo al sistema,
 											incluyendo la gestión de usuarios.
 										</span>
 									)}
 									{pendingChange.newRole === "leader" && (
-										<span className="block mt-2 text-purple-600 dark:text-purple-400">
+										<span className="mt-2 block text-violet-600 dark:text-violet-400">
 											Los líderes pueden gestionar miembros y realizar acciones
 											de moderación.
 										</span>
 									)}
 									{pendingChange.currentRole === "admin" &&
 										pendingChange.newRole !== "admin" && (
-											<span className="block mt-2 text-amber-600 dark:text-amber-400">
+											<span className="mt-2 block text-amber-600 dark:text-amber-400">
 												Este usuario perderá todos los permisos de
 												administrador.
 											</span>
@@ -280,15 +351,15 @@ function RoleSelect({
 }) {
 	return (
 		<Select
-			defaultValue={currentRole}
+			value={currentRole}
 			onValueChange={(value) => {
-				if (value !== currentRole) {
-					onRoleChange(value as UserRole);
+				if (isUserRole(value) && value !== currentRole) {
+					onRoleChange(value);
 				}
 			}}
 			disabled={disabled}
 		>
-			<SelectTrigger size="sm" className="w-32 ml-auto">
+			<SelectTrigger size="sm" className="ml-auto w-32">
 				<SelectValue />
 			</SelectTrigger>
 			<SelectPopup>

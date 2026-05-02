@@ -1,57 +1,18 @@
 import { paginationOptsValidator } from "convex/server";
-import type { PaginationResult } from "convex/server";
 import { v } from "convex/values";
 import { membersByCreationTime, membersBySector } from "./aggregates";
 import { authedMutation, authedQuery } from "./utils";
 import { memberFieldsValidator } from "./memberTypes";
-import type { Doc } from "./_generated/dataModel";
 
 const memberFields = memberFieldsValidator.fields;
 
 export const list = authedQuery({
 	args: {
-		paginationOpts: paginationOptsValidator,
+		paginationOpts: v.optional(paginationOptsValidator),
 		search: v.optional(v.string()),
 	},
-	handler: async (ctx, args): Promise<PaginationResult<Doc<"members">>> => {
-		const { paginationOpts, search } = args;
-
-		const allMembers = await ctx.db.query("members").order("desc").collect();
-
-		let filteredMembers = allMembers;
-		if (search && search.trim() !== "") {
-			const searchLower = search.toLowerCase();
-			filteredMembers = allMembers.filter((member) =>
-				member.fullName.toLowerCase().includes(searchLower),
-			);
-		}
-
-		const cursor = paginationOpts.cursor;
-		let startIndex = 0;
-
-		if (cursor) {
-			const cursorIndex = filteredMembers.findIndex((m) => m._id === cursor);
-			if (cursorIndex !== -1) {
-				startIndex = cursorIndex + 1;
-			}
-		}
-
-		const pageMembers = filteredMembers.slice(
-			startIndex,
-			startIndex + paginationOpts.numItems,
-		);
-		const isDone =
-			startIndex + paginationOpts.numItems >= filteredMembers.length;
-		const continueCursor: string =
-			pageMembers.length > 0
-				? pageMembers[pageMembers.length - 1]._id
-				: paginationOpts.cursor ?? "";
-
-		return {
-			page: pageMembers,
-			continueCursor,
-			isDone,
-		};
+	handler: async (ctx) => {
+		return await ctx.db.query("members").order("desc").collect();
 	},
 });
 

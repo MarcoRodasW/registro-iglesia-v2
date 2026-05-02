@@ -5,14 +5,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { BulkAddMembersDialog, MembersTable } from "@/components/members";
 
 export const Route = createFileRoute("/_authenticated/members")({
-	loader: async ({ context }) => {
-		await context.queryClient.ensureQueryData(
-			convexQuery(api.members.list, {
-				paginationOpts: { numItems: 25, cursor: null },
-				search: undefined,
-			}),
-		);
-	},
+	loader: ({ context }) =>
+		context.queryClient.ensureQueryData(convexQuery(api.members.list, {})),
 	component: MembersPage,
 });
 

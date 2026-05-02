@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import {
 	membersByCreationTime,
 	membersBySector,
+	roleBounds,
 	usersBySectorAndRole,
 } from "./aggregates";
 import { internalMutation } from "./_generated/server";
@@ -156,6 +157,64 @@ export const reconcileMembersAggregateForSector = internalMutation({
 
 		return {
 			processed: members.length,
+		};
+	},
+});
+
+export const rebuildAllAggregates = internalMutation({
+	args: {},
+	handler: async (ctx) => {
+		await Promise.all([
+			membersByCreationTime.clearAll(ctx),
+			membersBySector.clearAll(ctx),
+			usersBySectorAndRole.clearAll(ctx),
+		]);
+
+		const [members, users] = await Promise.all([
+			ctx.db.query("members").collect(),
+			ctx.db.query("users").collect(),
+		]);
+
+		for (const member of members) {
+			await Promise.all([
+				membersByCreationTime.insertIfDoesNotExist(ctx, member),
+				membersBySector.insertIfDoesNotExist(ctx, member),
+			]);
+		}
+
+		for (const user of users) {
+			await usersBySectorAndRole.insertIfDoesNotExist(ctx, user);
+		}
+
+		const sectors = await ctx.db.query("sectors").collect();
+		const sectorsSummary = await Promise.all(
+			sectors.map(async (sector) => {
+				const [memberCount, leaderCount, adminCount] = await Promise.all([
+					membersBySector.count(ctx, { namespace: sector._id }),
+					usersBySectorAndRole.count(ctx, {
+						namespace: sector._id,
+						bounds: roleBounds("leader"),
+					}),
+					usersBySectorAndRole.count(ctx, {
+						namespace: sector._id,
+						bounds: roleBounds("admin"),
+					}),
+				]);
+
+				return {
+					sectorId: sector._id,
+					sectorName: sector.name,
+					memberCount,
+					leaderCount: leaderCount + adminCount,
+				};
+			}),
+		);
+
+		return {
+			membersProcessed: members.length,
+			usersProcessed: users.length,
+			totalMembers: await membersByCreationTime.count(ctx),
+			sectors: sectorsSummary,
 		};
 	},
 });
