@@ -1,6 +1,7 @@
 export { BulkAddMembersDialog } from "./bulk-add-members-dialog";
 export { DeleteMemberDialog } from "./delete-member-dialog";
 export { EditMemberDialog } from "./edit-member-dialog";
+export { FilterBar } from "./filter-bar";
 export { GrowthRateCard, GrowthRateCardSkeleton } from "./growth-rate-card";
 export { MemberSelectField } from "./member-select-field";
 export {

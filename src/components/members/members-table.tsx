@@ -43,6 +43,7 @@ import { formatPhone } from "@/lib/utils";
 
 import { DeleteMemberDialog } from "./delete-member-dialog";
 import { EditMemberDialog } from "./edit-member-dialog";
+import { FilterBar } from "./filter-bar";
 
 const COLUMN_IDS = {
 	name: "name",
@@ -174,6 +175,8 @@ export function MembersTable() {
 		showJumpToTop,
 		handleJumpToTop,
 		filteredCount,
+		filters,
+		filterOptions,
 	} = useMembersList();
 
 	const { data: currentUser } = useSuspenseQuery(
@@ -239,31 +242,34 @@ export function MembersTable() {
 	return (
 		<Card>
 			<CardHeader>
-				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-					<div className="flex items-center gap-3">
-						<CardTitle>Listado de Miembros</CardTitle>
-						{totalCount > 0 && (
-							<Badge variant="info" size="lg">
-								<UsersIcon className="size-3.5" />
-								{filteredCount} de {totalCount}
-							</Badge>
-						)}
-					</div>
-					<div className="flex items-center gap-2">
-						<InputGroup className="w-full sm:w-64">
-							<InputGroupAddon align="inline-start">
-								<SearchIcon />
-							</InputGroupAddon>
-							<InputGroupInput
-								placeholder="Buscar por nombre..."
-								value={search}
-								onChange={(e) => setSearch(e.target.value)}
+				<div className="flex flex-col gap-3">
+					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+						<div className="flex items-center gap-3">
+							<CardTitle>Listado de Miembros</CardTitle>
+							{totalCount > 0 && (
+								<Badge variant="info" size="lg">
+									<UsersIcon className="size-3.5" />
+									{filteredCount} de {totalCount}
+								</Badge>
+							)}
+						</div>
+						<div className="flex flex-wrap items-center gap-2">
+							<InputGroup className="w-full sm:w-56">
+								<InputGroupAddon align="inline-start">
+									<SearchIcon />
+								</InputGroupAddon>
+								<InputGroupInput
+									placeholder="Buscar por nombre..."
+									value={search}
+									onChange={(e) => setSearch(e.target.value)}
+								/>
+							</InputGroup>
+							<FilterBar filters={filters} filterOptions={filterOptions} />
+							<ColumnVisibilityDropdown
+								table={table}
+								columnLabels={COLUMN_LABELS}
 							/>
-						</InputGroup>
-						<ColumnVisibilityDropdown
-							table={table}
-							columnLabels={COLUMN_LABELS}
-						/>
+						</div>
 					</div>
 				</div>
 			</CardHeader>
