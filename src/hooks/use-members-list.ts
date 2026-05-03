@@ -10,8 +10,8 @@ import {
 	useState,
 } from "react";
 import {
-	type UseFiltersReturn,
 	applyFilters,
+	type UseFiltersReturn,
 	useFilterOptions,
 	useFilters,
 } from "./use-member-filters";
@@ -44,8 +44,24 @@ export function useMembersList(): UseMembersListReturn {
 		error,
 	} = useQuery(convexQuery(api.members.list, {}));
 
+	const { data: currentUser } = useQuery(
+		convexQuery(api.users.getCurrentUserWithRole, {}),
+	);
+	const canReadSectors =
+		currentUser?.role === "admin" || currentUser?.role === "leader";
+
+	const { data: sectors = [] } = useQuery({
+		...convexQuery(api.sectors.listSectors, {}),
+		enabled: canReadSectors,
+	});
+
+	const sectorNameById = useMemo(
+		() => new Map(sectors.map((sector) => [sector._id, sector.name] as const)),
+		[sectors],
+	);
+
 	const filters = useFilters();
-	const filterOptions = useFilterOptions(allMembers);
+	const filterOptions = useFilterOptions(allMembers, sectorNameById);
 
 	const membersMatchingSearch = useMemo(() => {
 		if (!normalizedSearch) {

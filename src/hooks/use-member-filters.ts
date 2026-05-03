@@ -1,7 +1,9 @@
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import type { MemberData } from "./use-members-list";
 
-export type FilterKey = "registrationMonth";
+export type FilterKey = "registrationMonth" | "sectorId";
+
+const UNASSIGNED_SECTOR_FILTER_VALUE = "__unassigned_sector__";
 
 export interface FilterOption {
 	label: string;
@@ -11,7 +13,10 @@ export interface FilterOption {
 export interface FilterDefinition {
 	key: FilterKey;
 	label: string;
-	getOptions: (members: MemberData[]) => FilterOption[];
+	getOptions: (
+		members: MemberData[],
+		context: { sectorNameById?: ReadonlyMap<string, string> },
+	) => FilterOption[];
 	apply: (member: MemberData, selectedValues: Set<string>) => boolean;
 }
 
@@ -42,6 +47,18 @@ function getMonthYearLabel(key: string): string {
 	return `${monthName} ${year}`;
 }
 
+function getSectorOptionLabel(
+	sectorId: string,
+	sectorNameById?: ReadonlyMap<string, string>,
+): string {
+	const sectorName = sectorNameById?.get(sectorId);
+	if (sectorName) {
+		return sectorName;
+	}
+
+	return `Sector ${sectorId.slice(-4)}`;
+}
+
 export const FILTER_DEFINITIONS: FilterDefinition[] = [
 	{
 		key: "registrationMonth",
@@ -61,6 +78,46 @@ export const FILTER_DEFINITIONS: FilterDefinition[] = [
 			if (!member.firstVisitDate) return false;
 			const key = getMonthYearKey(member.firstVisitDate);
 			return selectedValues.has(key);
+		},
+	},
+	{
+		key: "sectorId",
+		label: "Sector",
+		getOptions: (members, context) => {
+			const sectorIds = new Set<string>();
+			let hasUnassignedMembers = false;
+
+			for (const member of members) {
+				if (!member.sectorId) {
+					hasUnassignedMembers = true;
+					continue;
+				}
+
+				sectorIds.add(member.sectorId);
+			}
+
+			const options = Array.from(sectorIds)
+				.map((sectorId) => ({
+					value: sectorId,
+					label: getSectorOptionLabel(sectorId, context.sectorNameById),
+				}))
+				.sort((a, b) => a.label.localeCompare(b.label, "es"));
+
+			if (hasUnassignedMembers) {
+				options.push({
+					value: UNASSIGNED_SECTOR_FILTER_VALUE,
+					label: "Sin sector",
+				});
+			}
+
+			return options;
+		},
+		apply: (member, selectedValues) => {
+			if (!member.sectorId) {
+				return selectedValues.has(UNASSIGNED_SECTOR_FILTER_VALUE);
+			}
+
+			return selectedValues.has(member.sectorId);
 		},
 	},
 ];
@@ -174,14 +231,15 @@ export function applyFilters(
 
 export function useFilterOptions(
 	allMembers: MemberData[],
+	sectorNameById?: ReadonlyMap<string, string>,
 ): Record<FilterKey, FilterOption[]> {
 	const deferredMembers = useDeferredValue(allMembers);
 
 	return useMemo(() => {
 		const result = {} as Record<FilterKey, FilterOption[]>;
 		for (const def of FILTER_DEFINITIONS) {
-			result[def.key] = def.getOptions(deferredMembers);
+			result[def.key] = def.getOptions(deferredMembers, { sectorNameById });
 		}
 		return result;
-	}, [deferredMembers]);
+	}, [deferredMembers, sectorNameById]);
 }
