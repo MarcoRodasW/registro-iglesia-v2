@@ -23,6 +23,7 @@ import {
 	DateField,
 	NumberFieldForm,
 	PhoneField,
+	SectorSelectField,
 	SubmitButton,
 	TextareaField,
 	TextField,
@@ -62,6 +63,7 @@ export function EditMemberDialog({
 			invitedBy: member.invitedBy as string | undefined,
 			invitedByName: inviterName,
 			notes: member.notes ?? "",
+			sectorId: member.sectorId as string | undefined,
 		},
 		onSubmit: async ({ value }) => {
 			try {
@@ -79,6 +81,7 @@ export function EditMemberDialog({
 						| undefined,
 					invitedByName: value.invitedByName?.trim() || undefined,
 					notes: value.notes || undefined,
+					sectorId: (value.sectorId || undefined) as Id<"sectors"> | undefined,
 				});
 				onOpenChange(false);
 			} catch (error) {
@@ -100,6 +103,7 @@ export function EditMemberDialog({
 				invitedBy: member.invitedBy as string | undefined,
 				invitedByName: inviterName,
 				notes: member.notes ?? "",
+				sectorId: member.sectorId as string | undefined,
 			});
 		}
 	}, [open, member, form, inviterName]);
@@ -221,6 +225,16 @@ export function EditMemberDialog({
 										/>
 									)}
 								</form.Field>
+							)}
+						</form.Field>
+
+						<form.Field name="sectorId">
+							{(field: AnyFieldApi) => (
+								<SectorSelectField
+									field={field}
+									label="Sector"
+									description="Selecciona el sector al que pertenece el miembro"
+								/>
 							)}
 						</form.Field>
 

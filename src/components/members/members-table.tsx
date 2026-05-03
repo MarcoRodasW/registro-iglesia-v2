@@ -1,6 +1,6 @@
 import { api } from "@convex/api";
 import { convexQuery } from "@convex-dev/react-query";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type {
 	ColumnDef,
 	Updater,
@@ -49,6 +49,7 @@ const COLUMN_IDS = {
 	name: "name",
 	phone: "phone",
 	address: "address",
+	sector: "sector",
 	email: "email",
 	age: "age",
 	childrenCount: "childrenCount",
@@ -65,12 +66,18 @@ const MEMBERS_VISIBILITY_CONFIG: RoleVisibilityConfig = {
 			COLUMN_IDS.name,
 			COLUMN_IDS.phone,
 			COLUMN_IDS.address,
+			COLUMN_IDS.sector,
 			COLUMN_IDS.email,
 			COLUMN_IDS.age,
 			COLUMN_IDS.childrenCount,
 			COLUMN_IDS.actions,
 		],
-		user: [COLUMN_IDS.name, COLUMN_IDS.address, COLUMN_IDS.actions],
+		user: [
+			COLUMN_IDS.name,
+			COLUMN_IDS.address,
+			COLUMN_IDS.sector,
+			COLUMN_IDS.actions,
+		],
 	},
 };
 
@@ -78,6 +85,7 @@ const COLUMN_LABELS: Record<string, string> = {
 	[COLUMN_IDS.name]: "Nombre",
 	[COLUMN_IDS.phone]: "Teléfono",
 	[COLUMN_IDS.address]: "Dirección",
+	[COLUMN_IDS.sector]: "Sector",
 	[COLUMN_IDS.email]: "Email",
 	[COLUMN_IDS.age]: "Edad",
 	[COLUMN_IDS.childrenCount]: "Hijos",
@@ -87,6 +95,8 @@ const COLUMN_LABELS: Record<string, string> = {
 function useMembersColumns(
 	onEdit: (member: MemberData) => void,
 	onDelete: (member: MemberData) => void,
+	sectorNameById: Map<string, string>,
+	canReadSectors: boolean,
 ): ColumnDef<MemberData>[] {
 	return useMemo(
 		(): ColumnDef<MemberData>[] => [
@@ -109,6 +119,24 @@ function useMembersColumns(
 				id: COLUMN_IDS.address,
 				accessorKey: "address",
 				header: "Dirección",
+			},
+			{
+				id: COLUMN_IDS.sector,
+				accessorKey: "sectorId",
+				header: "Sector",
+				cell: ({ getValue }) => {
+					const sectorId = getValue<MemberData["sectorId"]>();
+					if (!sectorId) {
+						return <span className="text-muted-foreground">Sin sector</span>;
+					}
+
+					const sectorName = sectorNameById.get(sectorId);
+					if (sectorName) {
+						return sectorName;
+					}
+
+					return canReadSectors ? "Sector no disponible" : "Sector asignado";
+				},
 			},
 			{
 				id: COLUMN_IDS.email,
@@ -161,7 +189,7 @@ function useMembersColumns(
 				},
 			},
 		],
-		[onEdit, onDelete],
+		[onEdit, onDelete, sectorNameById, canReadSectors],
 	);
 }
 
@@ -183,6 +211,12 @@ export function MembersTable() {
 		convexQuery(api.users.getCurrentUserWithRole, {}),
 	);
 	const role = currentUser?.role ?? "user";
+	const canReadSectors = role === "admin" || role === "leader";
+
+	const { data: sectors = [] } = useQuery({
+		...convexQuery(api.sectors.listSectors, {}),
+		enabled: canReadSectors,
+	});
 
 	const [editMember, setEditMember] = useState<MemberData | null>(null);
 	const [deleteMember, setDeleteMember] = useState<MemberData | null>(null);
@@ -228,7 +262,17 @@ export function MembersTable() {
 		[role],
 	);
 
-	const columns = useMembersColumns(handleEditOpen, handleDeleteOpen);
+	const sectorNameById = useMemo(
+		() => new Map(sectors.map((sector) => [sector._id, sector.name] as const)),
+		[sectors],
+	);
+
+	const columns = useMembersColumns(
+		handleEditOpen,
+		handleDeleteOpen,
+		sectorNameById,
+		canReadSectors,
+	);
 
 	const table = useReactTable({
 		data: members,

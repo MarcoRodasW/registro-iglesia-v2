@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth/minimal";
 import { createClient, type AuthFunctions } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
+import { usersBySectorAndRole } from "./aggregates";
 import authConfig from "./auth.config";
 import { components, internal } from "./_generated/api";
 import { query } from "./_generated/server";
@@ -18,12 +19,16 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
       onCreate: async (ctx, doc) => {
         const existingUsers = await ctx.db.query("users").first();
         const role = existingUsers === null ? "admin" : "user";
-        await ctx.db.insert("users", {
+        const userId = await ctx.db.insert("users", {
           name: doc.name,
           email: doc.email,
           authId: doc._id,
           role,
         });
+        const user = await ctx.db.get(userId);
+        if (user) {
+          await usersBySectorAndRole.insertIfDoesNotExist(ctx, user);
+        }
       },
       onUpdate: async (ctx, newDoc, oldDoc) => {
         if (newDoc.email !== oldDoc.email || newDoc.name !== oldDoc.name) {
@@ -32,10 +37,19 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
             .withIndex("by_authId", (q) => q.eq("authId", newDoc._id))
             .unique();
           if (user) {
+            const previousUser = user;
             await ctx.db.patch(user._id, {
               email: newDoc.email,
               name: newDoc.name,
             });
+            const updatedUser = await ctx.db.get(user._id);
+            if (updatedUser) {
+              await usersBySectorAndRole.replaceOrInsert(
+                ctx,
+                previousUser,
+                updatedUser,
+              );
+            }
           }
         }
       },
@@ -46,6 +60,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
           .unique();
         if (user) {
           await ctx.db.delete(user._id);
+          await usersBySectorAndRole.deleteIfExists(ctx, user);
         }
       },
     },

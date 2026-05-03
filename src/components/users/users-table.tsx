@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { ShieldIcon, UserIcon, UsersIcon } from "lucide-react";
+import { CrownIcon, ShieldIcon, UserIcon, UsersIcon } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { DataTable } from "@/components/data-table";
 import {
@@ -40,11 +40,22 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toastManager } from "@/components/ui/toast";
 
-type UserRole = "admin" | "user";
+type UserRole = "admin" | "leader" | "user";
 type UserData = Doc<"users">;
 type UserId = Id<"users">;
+type SectorId = Id<"sectors">;
 
-const roleLabel = (role: UserRole) => (role === "admin" ? "Admin" : "Usuario");
+const ROLE_LABELS = {
+	admin: "Admin",
+	leader: "Líder",
+	user: "Usuario",
+} as const;
+
+const roleLabel = (role: UserRole) => ROLE_LABELS[role];
+
+function isUserRole(value: string | null): value is UserRole {
+	return value === "admin" || value === "leader" || value === "user";
+}
 
 interface PendingRoleChange {
 	userId: UserId;
@@ -55,6 +66,7 @@ interface PendingRoleChange {
 
 function useUsersColumns(
 	currentAppUserId: string | null,
+	sectorNameById: Map<SectorId, string>,
 	onRoleChangeRequest: (
 		userId: UserId,
 		userName: string,
@@ -76,13 +88,15 @@ function useUsersColumns(
 						<div className="flex items-center gap-2 font-medium">
 							{user.role === "admin" ? (
 								<ShieldIcon className="size-4 text-amber-500" />
+							) : user.role === "leader" ? (
+								<CrownIcon className="size-4 text-violet-500" />
 							) : (
 								<UserIcon className="size-4 text-muted-foreground" />
 							)}
 							{user.name}
 							{isSelf && (
 								<Badge variant="outline" size="sm">
-									Tu
+									Tú
 								</Badge>
 							)}
 						</div>
@@ -95,21 +109,42 @@ function useUsersColumns(
 				header: "Email",
 			},
 			{
+				id: "sector",
+				accessorKey: "sectorId",
+				header: "Sector",
+				cell: ({ getValue }) => {
+					const sectorId = getValue<UserData["sectorId"]>();
+					if (!sectorId) {
+						return <span className="text-muted-foreground">Sin sector</span>;
+					}
+
+					return sectorNameById.get(sectorId) ?? "Sector no disponible";
+				},
+			},
+			{
 				id: "role",
 				accessorKey: "role",
 				header: "Rol",
 				cell: ({ getValue }) => {
 					const role = getValue<UserRole>();
 					return (
-						<Badge variant={role === "admin" ? "warning" : "secondary"}>
-							{role === "admin" ? "Admin" : "Usuario"}
+						<Badge
+							variant={
+								role === "admin"
+									? "warning"
+									: role === "leader"
+										? "default"
+										: "secondary"
+							}
+						>
+							{roleLabel(role)}
 						</Badge>
 					);
 				},
 			},
 			{
 				id: "changeRole",
-				header: () => <span className="sr-only">Cambiar Rol</span>,
+				header: () => <span className="sr-only">Cambiar rol</span>,
 				meta: {
 					headerClassName: "text-right",
 					cellClassName: "text-right",
@@ -129,7 +164,12 @@ function useUsersColumns(
 				},
 			},
 		],
-		[currentAppUserId, onRoleChangeRequest, isRoleMutationPending],
+		[
+			currentAppUserId,
+			sectorNameById,
+			onRoleChangeRequest,
+			isRoleMutationPending,
+		],
 	);
 }
 
@@ -137,6 +177,9 @@ export function UsersTable() {
 	const queryClient = useQueryClient();
 	const { data: users } = useSuspenseQuery(
 		convexQuery(api.users.listUsers, {}),
+	);
+	const { data: sectors } = useSuspenseQuery(
+		convexQuery(api.sectors.listSectors, {}),
 	);
 	const { data: currentUser } = useSuspenseQuery(
 		convexQuery(api.users.getCurrentUserWithRole, {}),
@@ -198,14 +241,20 @@ export function UsersTable() {
 		setPendingChange(null);
 	}, [pendingChange, setUserRole]);
 
+	const sectorNameById = useMemo(
+		() => new Map(sectors.map((sector) => [sector._id, sector.name] as const)),
+		[sectors],
+	);
+
 	const columns = useUsersColumns(
 		currentUser?.appUserId ?? null,
+		sectorNameById,
 		handleRoleChangeRequest,
 		setUserRole.isPending,
 	);
 
 	const table = useReactTable({
-		data: users ?? [],
+		data: users,
 		columns,
 		getCoreRowModel: getCoreRowModel(),
 		getRowId: (row) => row._id,
@@ -218,7 +267,7 @@ export function UsersTable() {
 					<CardTitle>Gestionar Usuarios</CardTitle>
 				</CardHeader>
 				<CardContent>
-					{!users || users.length === 0 ? (
+					{users.length === 0 ? (
 						<Empty>
 							<EmptyHeader>
 								<EmptyMedia variant="icon">
@@ -257,15 +306,21 @@ export function UsersTable() {
 									</span>
 									?
 									{pendingChange.newRole === "admin" && (
-										<span className="block mt-2 text-amber-600 dark:text-amber-400">
+										<span className="mt-2 block text-amber-600 dark:text-amber-400">
 											Los administradores tienen acceso completo al sistema,
-											incluyendo la gestion de usuarios.
+											incluyendo la gestión de usuarios.
+										</span>
+									)}
+									{pendingChange.newRole === "leader" && (
+										<span className="mt-2 block text-violet-600 dark:text-violet-400">
+											Los líderes pueden gestionar miembros y realizar acciones
+											de moderación.
 										</span>
 									)}
 									{pendingChange.currentRole === "admin" &&
-										pendingChange.newRole === "user" && (
-											<span className="block mt-2 text-amber-600 dark:text-amber-400">
-												Este usuario perdera todos los permisos de
+										pendingChange.newRole !== "admin" && (
+											<span className="mt-2 block text-amber-600 dark:text-amber-400">
+												Este usuario perderá todos los permisos de
 												administrador.
 											</span>
 										)}
@@ -298,18 +353,19 @@ function RoleSelect({
 		<Select
 			value={currentRole}
 			onValueChange={(value) => {
-				if (value !== currentRole) {
-					onRoleChange(value as UserRole);
+				if (isUserRole(value) && value !== currentRole) {
+					onRoleChange(value);
 				}
 			}}
 			disabled={disabled}
 		>
-			<SelectTrigger size="sm" className="w-32 ml-auto">
+			<SelectTrigger size="sm" className="ml-auto w-32">
 				<SelectValue />
 			</SelectTrigger>
 			<SelectPopup>
-				<SelectItem value="admin">Admin</SelectItem>
-				<SelectItem value="user">Usuario</SelectItem>
+				<SelectItem value="admin">{ROLE_LABELS.admin}</SelectItem>
+				<SelectItem value="leader">{ROLE_LABELS.leader}</SelectItem>
+				<SelectItem value="user">{ROLE_LABELS.user}</SelectItem>
 			</SelectPopup>
 		</Select>
 	);

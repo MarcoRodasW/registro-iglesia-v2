@@ -14,8 +14,10 @@ import {
 	AutocompleteItem,
 	AutocompleteList,
 	AutocompletePopup,
+	AutocompleteStatus,
 } from "@/components/ui/autocomplete";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Spinner } from "@/components/ui/spinner";
 
 interface MemberOption {
 	value: string;
@@ -49,18 +51,23 @@ export function MemberSelectField({
 		(field.state.value as string | undefined) ?? undefined,
 	);
 
-	const { data: members = [] } = useQuery(
-		convexQuery(api.members.searchMembers, {
+	const { data: members = [], isPending } = useQuery({
+		...convexQuery(api.members.searchMembers, {
 			search: inputValue || undefined,
 			limit: 20,
 			excludeId: excludeMemberId as Id<"members"> | undefined,
 		}),
-	);
+		placeholderData: (previousData) => previousData,
+	});
 
 	const items: MemberOption[] = members.map((m) => ({
 		value: m.id,
 		label: m.fullName,
 	}));
+
+	const hasSearchTerm = inputValue.trim().length > 0;
+	const isSearching = isPending && hasSearchTerm;
+	const showEmptyState = hasSearchTerm && !isSearching && items.length === 0;
 
 	return (
 		<Field className={className}>
@@ -107,8 +114,18 @@ export function MemberSelectField({
 					disabled={disabled}
 					showClear
 				/>
-				<AutocompletePopup>
-					<AutocompleteEmpty>No se encontraron miembros</AutocompleteEmpty>
+				<AutocompletePopup aria-busy={isSearching || undefined}>
+					<AutocompleteStatus>
+						{isSearching ? (
+							<span className="flex items-center justify-center gap-2">
+								<Spinner aria-hidden className="size-3.5 animate-spin" />
+								Buscando miembros...
+							</span>
+						) : null}
+					</AutocompleteStatus>
+					{showEmptyState ? (
+						<AutocompleteEmpty>No se encontraron miembros</AutocompleteEmpty>
+					) : null}
 					<AutocompleteList>
 						{(item: MemberOption) => (
 							<AutocompleteItem key={item.value} value={item}>

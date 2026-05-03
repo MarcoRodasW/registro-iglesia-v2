@@ -24,6 +24,7 @@ import {
 	DateField,
 	NumberFieldForm,
 	PhoneField,
+	SectorSelectField,
 	SubmitButton,
 	TextareaField,
 	TextField,
@@ -142,6 +143,11 @@ export function BulkAddMembersDialog() {
 		},
 		[resetSavedIndices],
 	);
+
+	const handleCancelDialog = () => {
+		clearDraftState();
+		form.reset();
+	};
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
@@ -315,6 +321,16 @@ export function BulkAddMembersDialog() {
 												)}
 											</form.Field>
 
+											<form.Field name={`members[${index}].sectorId`}>
+												{(field: AnyFieldApi) => (
+													<SectorSelectField
+														field={field}
+														label="Sector"
+														disabled={savedIndices.has(index)}
+													/>
+												)}
+											</form.Field>
+
 											<form.Field name={`members[${index}].notes`}>
 												{(field: AnyFieldApi) => (
 													<TextareaField
@@ -348,7 +364,10 @@ export function BulkAddMembersDialog() {
 					</form>
 				</DialogPanel>
 				<DialogFooter className="gap-2">
-					<DialogClose render={<Button variant="outline" />}>
+					<DialogClose
+						onClick={handleCancelDialog}
+						render={<Button variant="outline" />}
+					>
 						Cancelar
 					</DialogClose>
 					<form.Subscribe

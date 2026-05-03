@@ -20,6 +20,8 @@ export function toMemberPayload(data: MemberFormData): MemberFields {
 		firstVisitDate: data.firstVisitDate,
 		notes: data.notes?.trim() || undefined,
 		invitedBy: (data.invitedBy || undefined) as Id<"members"> | undefined,
+		// Support both fields while merging branches: prefer invitedByName when present
+		sectorId: (data.sectorId || undefined) as Id<"sectors"> | undefined,
 		invitedByName: data.invitedByName?.trim() || undefined,
 	};
 }

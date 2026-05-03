@@ -1,8 +1,8 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
+import { membersByCreationTime, membersBySector } from "./aggregates";
 import { authedMutation, authedQuery } from "./utils";
 import { memberFieldsValidator } from "./memberTypes";
-import { internalMutation } from "./_generated/server";
 
 const memberFields = memberFieldsValidator.fields;
 
@@ -18,10 +18,7 @@ export const list = authedQuery({
 
 export const count = authedQuery({
 	args: {},
-	handler: async (ctx) => {
-		const members = await ctx.db.query("members").collect();
-		return members.length;
-	},
+	handler: async (ctx) => membersByCreationTime.count(ctx),
 });
 
 export const countNewThisMonth = authedQuery({
@@ -31,64 +28,9 @@ export const countNewThisMonth = authedQuery({
 		startOfMonth.setDate(1);
 		startOfMonth.setHours(0, 0, 0, 0);
 		const startTimestamp = startOfMonth.getTime();
-
-		const members = await ctx.db.query("members").collect();
-		const newMembers = members.filter(
-			(member) => member._creationTime >= startTimestamp,
-		);
-
-		return newMembers.length;
-	},
-});
-
-export const getGrowthRate = authedQuery({
-	args: { period: v.union(v.literal("week"), v.literal("month")) },
-	handler: async (ctx, args) => {
-		const now = Date.now();
-		let currentStart: number;
-		let previousStart: number;
-		let previousEnd: number;
-
-		if (args.period === "week") {
-			// Last 7 days
-			currentStart = now - 7 * 24 * 60 * 60 * 1000;
-			// 7-14 days ago
-			previousStart = now - 14 * 24 * 60 * 60 * 1000;
-			previousEnd = currentStart;
-		} else {
-			// Current month
-			const startOfMonth = new Date();
-			startOfMonth.setDate(1);
-			startOfMonth.setHours(0, 0, 0, 0);
-			currentStart = startOfMonth.getTime();
-
-			// Previous month
-			const startOfPrevMonth = new Date(startOfMonth);
-			startOfPrevMonth.setMonth(startOfPrevMonth.getMonth() - 1);
-			previousStart = startOfPrevMonth.getTime();
-			previousEnd = currentStart;
-		}
-
-		const members = await ctx.db.query("members").collect();
-
-		const currentCount = members.filter(
-			(m) => m._creationTime >= currentStart,
-		).length;
-
-		const previousCount = members.filter(
-			(m) => m._creationTime >= previousStart && m._creationTime < previousEnd,
-		).length;
-
-		let growthRate: number | null = null;
-		if (previousCount > 0) {
-			growthRate = ((currentCount - previousCount) / previousCount) * 100;
-		}
-
-		return {
-			growthRate,
-			currentCount,
-			previousCount,
-		};
+		return await membersByCreationTime.count(ctx, {
+			bounds: { lower: { key: startTimestamp, inclusive: true } },
+		});
 	},
 });
 
@@ -137,46 +79,70 @@ export const searchMembers = authedQuery({
 
 export const createMember = authedMutation({
 	args: memberFields,
-		handler: async (ctx, args) => {
-			const memberId = await ctx.db.insert("members", {
-				fullName: args.fullName,
-				phone: args.phone,
-				address: args.address,
-				email: args.email,
-				age: args.age,
-				childrenCount: args.childrenCount,
-				firstVisitDate: args.firstVisitDate,
-				notes: args.notes,
-				invitedBy: args.invitedBy,
-				invitedByName: args.invitedByName,
-			});
-			return memberId;
-		},
+	handler: async (ctx, args) => {
+		const memberId = await ctx.db.insert("members", {
+			fullName: args.fullName,
+			phone: args.phone,
+			address: args.address,
+			email: args.email,
+			age: args.age,
+			childrenCount: args.childrenCount,
+			firstVisitDate: args.firstVisitDate,
+			notes: args.notes,
+			invitedBy: args.invitedBy,
+			invitedByName: args.invitedByName,
+			sectorId: args.sectorId,
+		});
+
+		const member = await ctx.db.get(memberId);
+		if (!member) {
+			throw new Error("Member was not created");
+		}
+
+		await Promise.all([
+			membersByCreationTime.insertIfDoesNotExist(ctx, member),
+			membersBySector.insertIfDoesNotExist(ctx, member),
+		]);
+
+		return memberId;
+	},
 });
 
 export const createMembersBatch = authedMutation({
 	args: {
 		members: v.array(memberFieldsValidator),
 	},
-		handler: async (ctx, args) => {
-			const memberIds: string[] = [];
-			for (const member of args.members) {
-				const memberId = await ctx.db.insert("members", {
-					fullName: member.fullName,
-					phone: member.phone,
-					address: member.address,
-					email: member.email,
-					age: member.age,
-					childrenCount: member.childrenCount,
-					firstVisitDate: member.firstVisitDate,
-					notes: member.notes,
-					invitedBy: member.invitedBy,
-					invitedByName: member.invitedByName,
-				});
-				memberIds.push(memberId);
+	handler: async (ctx, args) => {
+		const memberIds: string[] = [];
+		for (const member of args.members) {
+			const memberId = await ctx.db.insert("members", {
+				fullName: member.fullName,
+				phone: member.phone,
+				address: member.address,
+				email: member.email,
+				age: member.age,
+				childrenCount: member.childrenCount,
+				firstVisitDate: member.firstVisitDate,
+				notes: member.notes,
+				invitedBy: member.invitedBy,
+				invitedByName: member.invitedByName,
+				sectorId: member.sectorId,
+			});
+
+			const createdMember = await ctx.db.get(memberId);
+			if (!createdMember) {
+				throw new Error("Member was not created");
 			}
-			return memberIds;
-		},
+
+			await Promise.all([
+				membersByCreationTime.insertIfDoesNotExist(ctx, createdMember),
+				membersBySector.insertIfDoesNotExist(ctx, createdMember),
+			]);
+
+			memberIds.push(memberId);
+		}
+		return memberIds;
+	},
 });
 
 export const updateMember = authedMutation({
@@ -202,8 +168,19 @@ export const updateMember = authedMutation({
 			firstVisitDate: fields.firstVisitDate,
 			notes: fields.notes,
 			invitedBy: fields.invitedBy,
+			sectorId: fields.sectorId,
 			invitedByName: fields.invitedByName,
 		});
+
+		const updated = await ctx.db.get(id);
+		if (!updated) {
+			throw new Error("Member not found");
+		}
+
+		await Promise.all([
+			membersByCreationTime.replaceOrInsert(ctx, existing, updated),
+			membersBySector.replaceOrInsert(ctx, existing, updated),
+		]);
 
 		return id;
 	},
@@ -220,57 +197,17 @@ export const deleteMember = authedMutation({
 		}
 
 		await ctx.db.delete(args.id);
+		await Promise.all([
+			membersByCreationTime.deleteIfExists(ctx, existing),
+			membersBySector.deleteIfExists(ctx, existing),
+		]);
 		return args.id;
-	},
-});
-
-export const backfillInvitedByName = internalMutation({
-	args: {},
-	handler: async (ctx) => {
-		const members = await ctx.db.query("members").collect();
-
-		let updated = 0;
-		let skippedNoInvitedBy = 0;
-		let skippedAlreadyHasName = 0;
-		let skippedInviterMissing = 0;
-
-		for (const member of members) {
-			if (!member.invitedBy) {
-				skippedNoInvitedBy += 1;
-				continue;
-			}
-
-			if (member.invitedByName?.trim()) {
-				skippedAlreadyHasName += 1;
-				continue;
-			}
-
-			const inviter = await ctx.db.get(member.invitedBy);
-			if (!inviter?.fullName?.trim()) {
-				skippedInviterMissing += 1;
-				continue;
-			}
-
-			await ctx.db.patch(member._id, {
-				invitedByName: inviter.fullName,
-			});
-			updated += 1;
-		}
-
-		return {
-			totalMembers: members.length,
-			updated,
-			skippedNoInvitedBy,
-			skippedAlreadyHasName,
-			skippedInviterMissing,
-		};
 	},
 });
 
 export const getMemberGrowthTrend = authedQuery({
 	args: {},
 	handler: async (ctx) => {
-		const members = await ctx.db.query("members").collect();
 		const now = new Date();
 
 		// Calculate data for last 6 months
@@ -282,13 +219,18 @@ export const getMemberGrowthTrend = authedQuery({
 
 		for (let i = 5; i >= 0; i--) {
 			const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-			const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+			const nextMonthDate = new Date(
+				now.getFullYear(),
+				now.getMonth() - i + 1,
+				1,
+			);
 
-			const count = members.filter(
-				(m) =>
-					m._creationTime >= monthDate.getTime() &&
-					m._creationTime <= monthEnd.getTime(),
-			).length;
+			const count = await membersByCreationTime.count(ctx, {
+				bounds: {
+					lower: { key: monthDate.getTime(), inclusive: true },
+					upper: { key: nextMonthDate.getTime(), inclusive: false },
+				},
+			});
 
 			const monthNames = [
 				"Ene",
@@ -320,7 +262,7 @@ export const getMemberGrowthTrend = authedQuery({
 			difference > 0 ? "up" : difference < 0 ? "down" : "stable";
 
 		// Total members
-		const totalMembers = members.length;
+		const totalMembers = await membersByCreationTime.count(ctx);
 
 		// Calculate average per month for last 3 months
 		const last3Months = monthsData.slice(3);
@@ -337,5 +279,17 @@ export const getMemberGrowthTrend = authedQuery({
 			totalMembers,
 			avgGrowth,
 		};
+	},
+});
+
+export const listMembersBySector = authedQuery({
+	args: {
+		sectorId: v.id("sectors"),
+	},
+	handler: async (ctx, args) => {
+		return await ctx.db
+			.query("members")
+			.withIndex("by_sector", (q) => q.eq("sectorId", args.sectorId))
+			.collect();
 	},
 });
