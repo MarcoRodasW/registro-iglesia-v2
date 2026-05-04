@@ -1,6 +1,7 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { membersByCreationTime, membersBySector } from "./aggregates";
+import { mutation, query } from "./_generated/server";
 import { authedMutation, authedQuery } from "./utils";
 import { memberFieldsValidator } from "./memberTypes";
 
@@ -291,5 +292,88 @@ export const listMembersBySector = authedQuery({
 			.query("members")
 			.withIndex("by_sector", (q) => q.eq("sectorId", args.sectorId))
 			.collect();
+	},
+});
+
+export const getPublicRegistrationLinkInfo = query({
+	args: {
+		token: v.string(),
+	},
+	handler: async (ctx, args) => {
+		const sector = await ctx.db
+			.query("sectors")
+			.withIndex("by_registrationToken", (q) =>
+				q.eq("registrationToken", args.token),
+			)
+			.unique();
+
+		if (!sector) {
+			return {
+				isValid: false,
+				message: "El enlace no existe o fue invalidado.",
+				sectorName: null,
+			};
+		}
+
+		return {
+			isValid: true,
+			message: null,
+			sectorName: sector.name,
+		};
+	},
+});
+
+export const registerFromSectorLink = mutation({
+	args: {
+		token: v.string(),
+		fullName: v.string(),
+		phone: v.string(),
+		address: v.string(),
+		email: v.optional(v.string()),
+		age: v.optional(v.number()),
+		childrenCount: v.optional(v.number()),
+		firstVisitDate: v.optional(v.number()),
+		invitedByName: v.optional(v.string()),
+	},
+	handler: async (ctx, args) => {
+		const sector = await ctx.db
+			.query("sectors")
+			.withIndex("by_registrationToken", (q) =>
+				q.eq("registrationToken", args.token),
+			)
+			.unique();
+
+		if (!sector) {
+			throw new Error("Invalid registration link");
+		}
+
+		const memberId = await ctx.db.insert("members", {
+			fullName: args.fullName,
+			phone: args.phone,
+			address: args.address,
+			email: args.email,
+			age: args.age,
+			childrenCount: args.childrenCount,
+			firstVisitDate: args.firstVisitDate,
+			notes: undefined,
+			invitedBy: undefined,
+			invitedByName: args.invitedByName,
+			sectorId: sector._id,
+		});
+
+		const member = await ctx.db.get(memberId);
+		if (!member) {
+			throw new Error("Member was not created");
+		}
+
+		await Promise.all([
+			membersByCreationTime.insertIfDoesNotExist(ctx, member),
+			membersBySector.insertIfDoesNotExist(ctx, member),
+		]);
+
+		return {
+			memberId,
+			sectorName: sector.name,
+		};
 	},
 });

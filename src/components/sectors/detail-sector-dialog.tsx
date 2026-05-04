@@ -8,6 +8,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import {
+	CopyIcon,
 	MapPinIcon,
 	PhoneIcon,
 	PlusIcon,
@@ -16,7 +17,7 @@ import {
 	UsersIcon,
 	XIcon,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +77,9 @@ export function DetailSectorDialog({
 	const setSectorLeadersMutation = useConvexMutation(
 		api.sectors.setSectorLeaders,
 	);
+	const getOrCreateRegistrationLinkMutation = useConvexMutation(
+		api.sectors.getOrCreateRegistrationLink,
+	);
 	const assignMembersMutation = useConvexMutation(
 		api.sectors.assignMembersToSector,
 	);
@@ -93,6 +97,7 @@ export function DetailSectorDialog({
 	const [memberSearch, setMemberSearch] = useState("");
 	const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
 	const [isAssigningMembers, setIsAssigningMembers] = useState(false);
+	const [isCopyingLink, startCopyTransition] = useTransition();
 
 	const sectorDetailQuery = convexQuery(api.sectors.getSector, {
 		sectorId: sector._id,
@@ -175,6 +180,10 @@ export function DetailSectorDialog({
 		onSettled: async () => {
 			await queryClient.invalidateQueries({ queryKey: sectorsQuery.queryKey });
 		},
+	});
+
+	const createOrGetRegistrationLink = useMutation({
+		mutationFn: getOrCreateRegistrationLinkMutation,
 	});
 
 	const handleSaveSectorField = useCallback(
@@ -321,6 +330,34 @@ export function DetailSectorDialog({
 		[removeMembersMutation, queryClient, sectorDetailQuery.queryKey],
 	);
 
+	const handleCopyRegistrationLink = () => {
+		startCopyTransition(async () => {
+			try {
+				const result = await createOrGetRegistrationLink.mutateAsync({
+					sectorId: sector._id,
+				});
+
+				if (typeof window === "undefined" || !navigator.clipboard) {
+					throw new Error("Clipboard API unavailable");
+				}
+
+				await navigator.clipboard.writeText(
+					`${window.location.origin}/registro/${result.token}`,
+				);
+
+				toastManager.add({
+					title: "Enlace copiado",
+					type: "success",
+				});
+			} catch {
+				toastManager.add({
+					title: "No se pudo copiar el enlace",
+					type: "error",
+				});
+			}
+		});
+	};
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-4xl max-h-[92vh] sm:min-h-[72vh] max-sm:min-h-[65vh] overflow-hidden flex flex-col">
@@ -330,6 +367,19 @@ export function DetailSectorDialog({
 						description={sector.description ?? ""}
 						onSave={handleSaveSectorField}
 					/>
+					<div className="flex flex-wrap items-center gap-2 pt-2">
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={() => void handleCopyRegistrationLink()}
+							disabled={isCopyingLink || createOrGetRegistrationLink.isPending}
+						>
+							<CopyIcon className="size-3.5" />
+							{isCopyingLink || createOrGetRegistrationLink.isPending
+								? "Generando enlace..."
+								: "Copiar enlace de registro"}
+						</Button>
+					</div>
 				</DialogHeader>
 
 				<DialogPanel className="flex-1 overflow-hidden" scrollFade={false}>

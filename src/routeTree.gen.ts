@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as RegistroTokenRouteImport } from './routes/registro.$token'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedSectorsRouteImport } from './routes/_authenticated/sectors'
 import { Route as AuthenticatedMembersRouteImport } from './routes/_authenticated/members'
@@ -30,6 +31,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const RegistroTokenRoute = RegistroTokenRouteImport.update({
+  id: '/registro/$token',
+  path: '/registro/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
   id: '/users',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/members': typeof AuthenticatedMembersRoute
   '/sectors': typeof AuthenticatedSectorsRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/registro/$token': typeof RegistroTokenRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -65,6 +72,7 @@ export interface FileRoutesByTo {
   '/members': typeof AuthenticatedMembersRoute
   '/sectors': typeof AuthenticatedSectorsRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/registro/$token': typeof RegistroTokenRoute
   '/': typeof AuthenticatedIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -75,14 +83,29 @@ export interface FileRoutesById {
   '/_authenticated/members': typeof AuthenticatedMembersRoute
   '/_authenticated/sectors': typeof AuthenticatedSectorsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
+  '/registro/$token': typeof RegistroTokenRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/members' | '/sectors' | '/users' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/members'
+    | '/sectors'
+    | '/users'
+    | '/registro/$token'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/members' | '/sectors' | '/users' | '/' | '/api/auth/$'
+  to:
+    | '/login'
+    | '/members'
+    | '/sectors'
+    | '/users'
+    | '/registro/$token'
+    | '/'
+    | '/api/auth/$'
   id:
     | '__root__'
     | '/_authenticated'
@@ -90,6 +113,7 @@ export interface FileRouteTypes {
     | '/_authenticated/members'
     | '/_authenticated/sectors'
     | '/_authenticated/users'
+    | '/registro/$token'
     | '/_authenticated/'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
@@ -97,6 +121,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  RegistroTokenRoute: typeof RegistroTokenRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -122,6 +147,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/registro/$token': {
+      id: '/registro/$token'
+      path: '/registro/$token'
+      fullPath: '/registro/$token'
+      preLoaderRoute: typeof RegistroTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/users': {
       id: '/_authenticated/users'
@@ -175,6 +207,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  RegistroTokenRoute: RegistroTokenRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
