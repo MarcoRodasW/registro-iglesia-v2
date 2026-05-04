@@ -33,7 +33,9 @@ export default defineSchema({
 		name: v.string(),
 		description: v.optional(v.string()),
 		leaderIds: v.optional(v.array(v.id("users"))),
+		registrationToken: v.optional(v.string()),
 	})
 		.index("by_name", ["name"])
-		.index("by_leader", ["leaderIds"]),
+		.index("by_leader", ["leaderIds"])
+		.index("by_registrationToken", ["registrationToken"]),
 });

@@ -20,6 +20,13 @@ function mapLeader(user: Doc<"users">) {
 	};
 }
 
+
+function createRegistrationToken() {
+	const randomPartA = Math.random().toString(36).slice(2, 14);
+	const randomPartB = Math.random().toString(36).slice(2, 14);
+	return `${Date.now().toString(36)}${randomPartA}${randomPartB}`;
+}
+
 export const listSectors = adminOrLeaderQuery({
 	args: {},
 	handler: async (ctx) => {
@@ -124,6 +131,47 @@ export const getSector = adminOrLeaderQuery({
 				leaders: mappedLeaders,
 			};
 		},
+});
+
+export const getOrCreateRegistrationLink = adminOrLeaderMutation({
+	args: {
+		sectorId: v.id("sectors"),
+	},
+	handler: async (ctx, args) => {
+		
+		if (ctx.appUser.sectorId !== args.sectorId) {
+			throw new Error("User can only manage their own sector");
+		}
+
+		const sector = await ctx.db.get(args.sectorId);
+		if (!sector) {
+			throw new Error("Sector not found");
+		}
+
+		if (sector.registrationToken) {
+			return {
+				token: sector.registrationToken,
+			};
+		}
+
+		let token = createRegistrationToken();
+		while (
+			await ctx.db
+				.query("sectors")
+				.withIndex("by_registrationToken", (q) => q.eq("registrationToken", token))
+				.unique()
+		) {
+			token = createRegistrationToken();
+		}
+
+		await ctx.db.patch(args.sectorId, {
+			registrationToken: token,
+		});
+
+		return {
+			token,
+		};
+	},
 });
 
 export const createSector = adminOrLeaderMutation({
