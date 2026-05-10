@@ -1,6 +1,9 @@
-import { flexRender, type Table as TanStackTable } from "@tanstack/react-table";
+import {
+	flexRender,
+	type Row,
+	type Table as TanStackTable,
+} from "@tanstack/react-table";
 import type { ReactNode } from "react";
-
 import {
 	Table,
 	TableBody,
@@ -9,6 +12,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 type ColumnMeta = {
 	headerClassName?: string;
@@ -18,9 +22,14 @@ type ColumnMeta = {
 interface DataTableProps<TData> {
 	table: TanStackTable<TData>;
 	footerRows?: ReactNode;
+	onRowClick?: (row: Row<TData>) => void;
 }
 
-export function DataTable<TData>({ table, footerRows }: DataTableProps<TData>) {
+export function DataTable<TData>({
+	table,
+	footerRows,
+	onRowClick,
+}: DataTableProps<TData>) {
 	return (
 		<div className="overflow-x-auto">
 			<Table>
@@ -48,7 +57,11 @@ export function DataTable<TData>({ table, footerRows }: DataTableProps<TData>) {
 				</TableHeader>
 				<TableBody>
 					{table.getRowModel().rows.map((row) => (
-						<TableRow key={row.id}>
+						<TableRow
+							key={row.id}
+							onClick={onRowClick ? () => onRowClick(row) : undefined}
+							className={cn(onRowClick && "cursor-pointer")}
+						>
 							{row.getVisibleCells().map((cell) => (
 								<TableCell
 									key={cell.id}

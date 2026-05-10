@@ -18,7 +18,18 @@ import {
 	DialogPanel,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	Drawer,
+	DrawerClose,
+	DrawerDescription,
+	DrawerFooter,
+	DrawerHeader,
+	DrawerPanel,
+	DrawerPopup,
+	DrawerTitle,
+} from "@/components/ui/drawer";
 import { useMemberMutations } from "@/hooks/use-member-mutations";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
 	DateField,
 	NumberFieldForm,
@@ -41,6 +52,7 @@ export function EditMemberDialog({
 	open,
 	onOpenChange,
 }: EditMemberDialogProps) {
+	const isMobile = useIsMobile();
 	const { updateMember } = useMemberMutations();
 
 	const { data: inviter, isLoading } = useQuery(
@@ -108,6 +120,174 @@ export function EditMemberDialog({
 		}
 	}, [open, member, form, inviterName]);
 
+	const formContent = (
+		<form
+			onSubmit={(e) => {
+				e.preventDefault();
+				form.handleSubmit();
+			}}
+			className="space-y-4"
+		>
+			<form.Field
+				name="fullName"
+				validators={{
+					onChange: z.string().min(1, "El nombre es requerido"),
+				}}
+			>
+				{(field) => (
+					<TextField
+						field={field}
+						label="Nombre completo *"
+						inputProps={{ placeholder: "Juan Pérez" }}
+					/>
+				)}
+			</form.Field>
+
+			<form.Field
+				name="phone"
+				validators={{
+					onChange: z.string().min(8, "El teléfono debe tener 8 dígitos"),
+				}}
+			>
+				{(field) => <PhoneField field={field} label="Teléfono *" />}
+			</form.Field>
+
+			<form.Field
+				name="address"
+				validators={{
+					onChange: z.string().min(1, "La dirección es requerida"),
+				}}
+			>
+				{(field) => (
+					<TextField
+						field={field}
+						label="Dirección *"
+						inputProps={{ placeholder: "Calle 123, Col. Centro" }}
+					/>
+				)}
+			</form.Field>
+
+			<form.Field
+				name="email"
+				validators={{
+					onChange: z.string().email("Email inválido").or(z.literal("")),
+				}}
+			>
+				{(field) => (
+					<TextField
+						field={field}
+						label="Email"
+						inputProps={{
+							placeholder: "correo@ejemplo.com",
+							type: "email",
+						}}
+					/>
+				)}
+			</form.Field>
+
+			<div className="grid grid-cols-2 gap-4">
+				<form.Field name="age">
+					{(field) => (
+						<NumberFieldForm field={field} label="Edad" min={0} max={120} />
+					)}
+				</form.Field>
+
+				<form.Field name="childrenCount">
+					{(field) => (
+						<NumberFieldForm
+							field={field}
+							label="Número de hijos"
+							min={0}
+							max={20}
+						/>
+					)}
+				</form.Field>
+			</div>
+
+			<form.Field name="firstVisitDate">
+				{(field) => <DateField field={field} label="Fecha de primera visita" />}
+			</form.Field>
+
+			<form.Field name="invitedBy">
+				{(invitedByField: AnyFieldApi) => (
+					<form.Field name="invitedByName">
+						{(invitedByNameField: AnyFieldApi) => (
+							<MemberSelectField
+								field={invitedByField}
+								nameField={invitedByNameField}
+								label="Invitado por"
+								disabled={isLoading}
+								excludeMemberId={member._id}
+							/>
+						)}
+					</form.Field>
+				)}
+			</form.Field>
+
+			<form.Field name="sectorId">
+				{(field: AnyFieldApi) => (
+					<SectorSelectField
+						field={field}
+						label="Sector"
+						description="Selecciona el sector al que pertenece el miembro"
+					/>
+				)}
+			</form.Field>
+
+			<form.Field name="notes">
+				{(field) => (
+					<TextareaField
+						field={field}
+						label="Notas"
+						textareaProps={{ placeholder: "Información adicional..." }}
+					/>
+				)}
+			</form.Field>
+		</form>
+	);
+
+	const submitButton = (
+		<form.Subscribe
+			selector={(state) => ({
+				canSubmit: state.canSubmit,
+				isSubmitting: state.isSubmitting,
+			})}
+		>
+			{({ canSubmit, isSubmitting }) => (
+				<SubmitButton
+					canSubmit={canSubmit}
+					isSubmitting={isSubmitting}
+					submittingText="Guardando..."
+					onClick={() => form.handleSubmit()}
+				>
+					Guardar cambios
+				</SubmitButton>
+			)}
+		</form.Subscribe>
+	);
+
+	if (isMobile) {
+		return (
+			<Drawer open={open} onOpenChange={onOpenChange}>
+				<DrawerPopup showBar>
+					<DrawerHeader>
+						<DrawerTitle>Editar Miembro</DrawerTitle>
+						<DrawerDescription>
+							Modifica la información del miembro
+						</DrawerDescription>
+					</DrawerHeader>
+					<DrawerPanel scrollable>{formContent}</DrawerPanel>
+					<DrawerFooter>
+						<DrawerClose render={<Button variant="outline" />}>
+							Cancelar
+						</DrawerClose>
+						{submitButton}
+					</DrawerFooter>
+				</DrawerPopup>
+			</Drawer>
+		);
+	}
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
@@ -117,159 +297,12 @@ export function EditMemberDialog({
 						Modifica la información del miembro
 					</DialogDescription>
 				</DialogHeader>
-				<DialogPanel>
-					<form
-						onSubmit={(e) => {
-							e.preventDefault();
-							form.handleSubmit();
-						}}
-						className="space-y-4"
-					>
-						<form.Field
-							name="fullName"
-							validators={{
-								onChange: z.string().min(1, "El nombre es requerido"),
-							}}
-						>
-							{(field) => (
-								<TextField
-									field={field}
-									label="Nombre completo *"
-									inputProps={{ placeholder: "Juan Pérez" }}
-								/>
-							)}
-						</form.Field>
-
-						<form.Field
-							name="phone"
-							validators={{
-								onChange: z.string().min(8, "El teléfono debe tener 8 dígitos"),
-							}}
-						>
-							{(field) => <PhoneField field={field} label="Teléfono *" />}
-						</form.Field>
-
-						<form.Field
-							name="address"
-							validators={{
-								onChange: z.string().min(1, "La dirección es requerida"),
-							}}
-						>
-							{(field) => (
-								<TextField
-									field={field}
-									label="Dirección *"
-									inputProps={{ placeholder: "Calle 123, Col. Centro" }}
-								/>
-							)}
-						</form.Field>
-
-						<form.Field
-							name="email"
-							validators={{
-								onChange: z.string().email("Email inválido").or(z.literal("")),
-							}}
-						>
-							{(field) => (
-								<TextField
-									field={field}
-									label="Email"
-									inputProps={{
-										placeholder: "correo@ejemplo.com",
-										type: "email",
-									}}
-								/>
-							)}
-						</form.Field>
-
-						<div className="grid grid-cols-2 gap-4">
-							<form.Field name="age">
-								{(field) => (
-									<NumberFieldForm
-										field={field}
-										label="Edad"
-										min={0}
-										max={120}
-									/>
-								)}
-							</form.Field>
-
-							<form.Field name="childrenCount">
-								{(field) => (
-									<NumberFieldForm
-										field={field}
-										label="Número de hijos"
-										min={0}
-										max={20}
-									/>
-								)}
-							</form.Field>
-						</div>
-
-						<form.Field name="firstVisitDate">
-							{(field) => (
-								<DateField field={field} label="Fecha de primera visita" />
-							)}
-						</form.Field>
-
-						<form.Field name="invitedBy">
-							{(invitedByField: AnyFieldApi) => (
-								<form.Field name="invitedByName">
-									{(invitedByNameField: AnyFieldApi) => (
-										<MemberSelectField
-											field={invitedByField}
-											nameField={invitedByNameField}
-											label="Invitado por"
-											disabled={isLoading}
-											excludeMemberId={member._id}
-										/>
-									)}
-								</form.Field>
-							)}
-						</form.Field>
-
-						<form.Field name="sectorId">
-							{(field: AnyFieldApi) => (
-								<SectorSelectField
-									field={field}
-									label="Sector"
-									description="Selecciona el sector al que pertenece el miembro"
-								/>
-							)}
-						</form.Field>
-
-						<form.Field name="notes">
-							{(field) => (
-								<TextareaField
-									field={field}
-									label="Notas"
-									textareaProps={{ placeholder: "Información adicional..." }}
-								/>
-							)}
-						</form.Field>
-					</form>
-				</DialogPanel>
+				<DialogPanel>{formContent}</DialogPanel>
 				<DialogFooter>
 					<DialogClose render={<Button variant="outline" />}>
 						Cancelar
 					</DialogClose>
-					<form.Subscribe
-						selector={(state) => ({
-							canSubmit: state.canSubmit,
-							isSubmitting: state.isSubmitting,
-						})}
-					>
-						{({ canSubmit, isSubmitting }) => (
-							<SubmitButton
-								canSubmit={canSubmit}
-								isSubmitting={isSubmitting}
-								submittingText="Guardando..."
-								onClick={() => form.handleSubmit()}
-							>
-								Guardar cambios
-							</SubmitButton>
-						)}
-					</form.Subscribe>
+					{submitButton}
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

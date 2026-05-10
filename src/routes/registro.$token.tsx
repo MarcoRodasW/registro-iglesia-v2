@@ -5,11 +5,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AlertTriangleIcon } from "lucide-react";
 
 import { PublicMemberRegistrationForm } from "@/components/members/public-member-registration-form";
-import {
-	Alert,
-	AlertDescription,
-	AlertTitle,
-} from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/registro/$token")({
 	loader: ({ context, params }) =>

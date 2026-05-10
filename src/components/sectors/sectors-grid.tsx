@@ -55,7 +55,30 @@ export function SectorsGrid() {
 			) : (
 				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
 					{sectors.map((sector) => (
-						<Card key={sector._id} className="flex flex-col">
+						<Card
+							key={sector._id}
+							className="flex flex-col cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+							role="button"
+							tabIndex={0}
+							aria-label={`Ver detalles del sector ${sector.name}`}
+							onMouseEnter={() =>
+								void prefetchSectorDetailQueries(queryClient, sector._id)
+							}
+							onFocus={() =>
+								void prefetchSectorDetailQueries(queryClient, sector._id)
+							}
+							onClick={() => {
+								void prefetchSectorDetailQueries(queryClient, sector._id);
+								setSectorToEdit(sector);
+							}}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									void prefetchSectorDetailQueries(queryClient, sector._id);
+									setSectorToEdit(sector);
+								}
+							}}
+						>
 							<CardHeader className="">
 								<div className="flex items-start justify-between">
 									<div className="flex items-center gap-2">
@@ -85,7 +108,10 @@ export function SectorsGrid() {
 													sector._id,
 												)
 											}
-											onClick={() => setSectorToEdit(sector)}
+											onClick={(e) => {
+												e.stopPropagation();
+												setSectorToEdit(sector);
+											}}
 										>
 											<EyeIcon className="size-4" />
 										</Button>
@@ -94,7 +120,10 @@ export function SectorsGrid() {
 												variant="ghost"
 												size="icon"
 												className="size-8 text-destructive hover:text-destructive"
-												onClick={() => setSectorToDelete(sector)}
+												onClick={(e) => {
+													e.stopPropagation();
+													setSectorToDelete(sector);
+												}}
 											>
 												<Trash2Icon className="size-4" />
 											</Button>

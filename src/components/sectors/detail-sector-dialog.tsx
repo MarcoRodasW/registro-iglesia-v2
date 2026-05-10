@@ -28,6 +28,12 @@ import {
 	DialogHeader,
 	DialogPanel,
 } from "@/components/ui/dialog";
+import {
+	Drawer,
+	DrawerHeader,
+	DrawerPanel,
+	DrawerPopup,
+} from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
 	Table,
@@ -44,6 +50,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn, formatPhone } from "@/lib/utils";
 import { Route } from "@/routes/_authenticated/sectors";
 import {
@@ -72,6 +79,7 @@ export function DetailSectorDialog({
 }: DetailSectorDialogProps) {
 	const { user } = Route.useRouteContext();
 	const queryClient = useQueryClient();
+	const isMobile = useIsMobile();
 
 	const updateSectorMutation = useConvexMutation(api.sectors.updateSector);
 	const setSectorLeadersMutation = useConvexMutation(
@@ -358,6 +366,239 @@ export function DetailSectorDialog({
 		});
 	};
 
+	const sectorContentBody = (
+		<div className="grid grid-cols-1 md:grid-cols-[1fr_300px] h-full min-h-0">
+			<div className="flex flex-col min-h-0 max-md:border-b md:border-r border-border/50">
+				<div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 bg-muted/30">
+					<UsersIcon className="size-3.5 text-muted-foreground" />
+					<h3 className="text-sm font-semibold tracking-tight">
+						Miembros asignados
+					</h3>
+					<Badge variant="outline" size="sm">
+						{members.length}
+					</Badge>
+					<div className="ml-auto">
+						{memberPanelOpen ? (
+							<Button
+								size="xs"
+								variant="ghost"
+								onClick={handleCloseMemberPanel}
+								className="gap-1 text-muted-foreground"
+							>
+								<XIcon className="size-3" />
+								Cancelar
+							</Button>
+						) : (
+							<Button
+								size="xs"
+								variant="outline"
+								onClick={handleOpenMemberPanel}
+								className="gap-1"
+							>
+								<PlusIcon className="size-3" />
+								Agregar
+							</Button>
+						)}
+					</div>
+				</div>
+
+				{memberPanelOpen ? (
+					<MemberSearchPanel
+						members={availableMembers}
+						isSearching={searchingMembers}
+						search={memberSearch}
+						onSearchChange={setMemberSearch}
+						selectedIds={selectedMemberIds}
+						onToggle={toggleMemberSelection}
+						onAssign={handleAssignMembers}
+						isAssigning={isAssigningMembers}
+					/>
+				) : null}
+
+				<ScrollArea className="flex-1 max-md:max-h-[38vh]">
+					{detailLoading ? (
+						<MembersTableSkeleton />
+					) : members.length > 0 ? (
+						<TooltipProvider>
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead className="pl-4">Nombre</TableHead>
+										<TableHead>Teléfono</TableHead>
+										<TableHead className="pr-2">Dirección</TableHead>
+										<TableHead className="w-8 pr-3" />
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{members.map((member) => (
+										<TableRow key={member._id} className="group">
+											<TableCell className="pl-4 font-medium">
+												{member.fullName}
+											</TableCell>
+											<TableCell className="tabular-nums text-muted-foreground">
+												<span className="inline-flex items-center gap-1.5">
+													<PhoneIcon className="size-3 shrink-0" />
+													{formatPhone(member.phone)}
+												</span>
+											</TableCell>
+											<TableCell className="pr-2 text-muted-foreground max-w-44 truncate">
+												<span className="inline-flex items-center gap-1.5">
+													<MapPinIcon className="size-3 shrink-0" />
+													<span className="truncate">{member.address}</span>
+												</span>
+											</TableCell>
+											<TableCell className="pr-3">
+												<Tooltip>
+													<TooltipTrigger
+														className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+														render={
+															<Button
+																size="icon-xs"
+																variant="ghost"
+																className="text-muted-foreground hover:text-destructive-foreground hover:bg-destructive/8"
+																onClick={() => handleRemoveMember(member._id)}
+															/>
+														}
+													>
+														<UserMinusIcon className="size-3.5" />
+													</TooltipTrigger>
+													<TooltipContent>Quitar del sector</TooltipContent>
+												</Tooltip>
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</TooltipProvider>
+					) : (
+						<EmptyMembers onAdd={handleOpenMemberPanel} />
+					)}
+				</ScrollArea>
+			</div>
+
+			<div className="flex flex-col min-h-0">
+				<div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 bg-muted/30">
+					<ShieldIcon className="size-3.5 text-muted-foreground" />
+					<h3 className="text-sm font-semibold tracking-tight">Líderes</h3>
+					<Badge variant="outline" size="sm">
+						{sectorLeaders.length}
+					</Badge>
+					{user && user.role === "admin" && (
+						<div className="ml-auto">
+							{leaderPanelOpen ? (
+								<Button
+									size="xs"
+									variant="ghost"
+									onClick={handleCloseLeaderPanel}
+									className="gap-1 text-muted-foreground"
+								>
+									<XIcon className="size-3" />
+									Cancelar
+								</Button>
+							) : (
+								<Button
+									size="xs"
+									variant="outline"
+									onClick={handleOpenLeaderPanel}
+								>
+									Gestionar
+								</Button>
+							)}
+						</div>
+					)}
+				</div>
+
+				{leaderPanelOpen ? (
+					<LeaderEditPanel
+						leaderItems={leaderItems}
+						pendingIds={pendingLeaderIds}
+						onChange={setPendingLeaderIds}
+						onSave={handleSaveLeaders}
+						isSaving={isSavingLeaders}
+						onLeaderSearchChange={setLeaderSearch}
+					/>
+				) : null}
+
+				<ScrollArea className="flex-1 max-md:max-h-[28vh]">
+					{detailLoading ? (
+						<LeadersListSkeleton />
+					) : sectorLeaders.length > 0 ? (
+						<ul className="divide-y divide-border/40">
+							{sectorLeaders.map((leader) => (
+								<li
+									key={leader._id}
+									className="flex items-center gap-3 px-4 py-2.5"
+								>
+									<Avatar className="size-7 shrink-0">
+										<AvatarFallback
+											className={cn(
+												"text-[11px] font-semibold",
+												"bg-primary/10 text-primary",
+											)}
+										>
+											{leader.name
+												.split(" ")
+												.map((part) => part[0])
+												.join("")
+												.slice(0, 2)
+												.toUpperCase()}
+										</AvatarFallback>
+									</Avatar>
+									<div className="min-w-0 flex-1">
+										<p className="text-sm font-medium truncate">
+											{leader.name}
+										</p>
+										<p className="text-xs text-muted-foreground truncate">
+											{leader.email}
+										</p>
+									</div>
+								</li>
+							))}
+						</ul>
+					) : (
+						<EmptyLeaders onManage={handleOpenLeaderPanel} />
+					)}
+				</ScrollArea>
+			</div>
+		</div>
+	);
+
+	const headerActions = (
+		<div className="flex flex-wrap items-center gap-2 pt-2">
+			<Button
+				size="sm"
+				variant="outline"
+				onClick={() => void handleCopyRegistrationLink()}
+				disabled={isCopyingLink || createOrGetRegistrationLink.isPending}
+			>
+				<CopyIcon className="size-3.5" />
+				{isCopyingLink || createOrGetRegistrationLink.isPending
+					? "Generando enlace..."
+					: "Copiar enlace de registro"}
+			</Button>
+		</div>
+	);
+
+	if (isMobile) {
+		return (
+			<Drawer open={open} onOpenChange={onOpenChange}>
+				<DrawerPopup showBar>
+					<DrawerHeader>
+						<DetailSectorForm
+							name={sector.name}
+							description={sector.description ?? ""}
+							onSave={handleSaveSectorField}
+						/>
+						{headerActions}
+					</DrawerHeader>
+					<DrawerPanel scrollable className="p-0">
+						{sectorContentBody}
+					</DrawerPanel>
+				</DrawerPopup>
+			</Drawer>
+		);
+	}
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-4xl max-h-[92vh] sm:min-h-[72vh] max-sm:min-h-[65vh] overflow-hidden flex flex-col">
@@ -367,224 +608,11 @@ export function DetailSectorDialog({
 						description={sector.description ?? ""}
 						onSave={handleSaveSectorField}
 					/>
-					<div className="flex flex-wrap items-center gap-2 pt-2">
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={() => void handleCopyRegistrationLink()}
-							disabled={isCopyingLink || createOrGetRegistrationLink.isPending}
-						>
-							<CopyIcon className="size-3.5" />
-							{isCopyingLink || createOrGetRegistrationLink.isPending
-								? "Generando enlace..."
-								: "Copiar enlace de registro"}
-						</Button>
-					</div>
+					{headerActions}
 				</DialogHeader>
 
 				<DialogPanel className="flex-1 overflow-hidden" scrollFade={false}>
-					<div className="grid grid-cols-1 md:grid-cols-[1fr_300px] h-full min-h-0">
-						<div className="flex flex-col min-h-0 max-md:border-b md:border-r border-border/50">
-							<div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 bg-muted/30">
-								<UsersIcon className="size-3.5 text-muted-foreground" />
-								<h3 className="text-sm font-semibold tracking-tight">
-									Miembros asignados
-								</h3>
-								<Badge variant="outline" size="sm">
-									{members.length}
-								</Badge>
-								<div className="ml-auto">
-									{memberPanelOpen ? (
-										<Button
-											size="xs"
-											variant="ghost"
-											onClick={handleCloseMemberPanel}
-											className="gap-1 text-muted-foreground"
-										>
-											<XIcon className="size-3" />
-											Cancelar
-										</Button>
-									) : (
-										<Button
-											size="xs"
-											variant="outline"
-											onClick={handleOpenMemberPanel}
-											className="gap-1"
-										>
-											<PlusIcon className="size-3" />
-											Agregar
-										</Button>
-									)}
-								</div>
-							</div>
-
-							{memberPanelOpen ? (
-								<MemberSearchPanel
-									members={availableMembers}
-									isSearching={searchingMembers}
-									search={memberSearch}
-									onSearchChange={setMemberSearch}
-									selectedIds={selectedMemberIds}
-									onToggle={toggleMemberSelection}
-									onAssign={handleAssignMembers}
-									isAssigning={isAssigningMembers}
-								/>
-							) : null}
-
-							<ScrollArea className="flex-1 max-md:max-h-[38vh]">
-								{detailLoading ? (
-									<MembersTableSkeleton />
-								) : members.length > 0 ? (
-									<TooltipProvider>
-										<Table>
-											<TableHeader>
-												<TableRow>
-													<TableHead className="pl-4">Nombre</TableHead>
-													<TableHead>Teléfono</TableHead>
-													<TableHead className="pr-2">Dirección</TableHead>
-													<TableHead className="w-8 pr-3" />
-												</TableRow>
-											</TableHeader>
-											<TableBody>
-												{members.map((member) => (
-													<TableRow key={member._id} className="group">
-														<TableCell className="pl-4 font-medium">
-															{member.fullName}
-														</TableCell>
-														<TableCell className="tabular-nums text-muted-foreground">
-															<span className="inline-flex items-center gap-1.5">
-																<PhoneIcon className="size-3 shrink-0" />
-																{formatPhone(member.phone)}
-															</span>
-														</TableCell>
-														<TableCell className="pr-2 text-muted-foreground max-w-44 truncate">
-															<span className="inline-flex items-center gap-1.5">
-																<MapPinIcon className="size-3 shrink-0" />
-																<span className="truncate">
-																	{member.address}
-																</span>
-															</span>
-														</TableCell>
-														<TableCell className="pr-3">
-															<Tooltip>
-																<TooltipTrigger
-																	className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-																	render={
-																		<Button
-																			size="icon-xs"
-																			variant="ghost"
-																			className="text-muted-foreground hover:text-destructive-foreground hover:bg-destructive/8"
-																			onClick={() =>
-																				handleRemoveMember(member._id)
-																			}
-																		/>
-																	}
-																>
-																	<UserMinusIcon className="size-3.5" />
-																</TooltipTrigger>
-																<TooltipContent>
-																	Quitar del sector
-																</TooltipContent>
-															</Tooltip>
-														</TableCell>
-													</TableRow>
-												))}
-											</TableBody>
-										</Table>
-									</TooltipProvider>
-								) : (
-									<EmptyMembers onAdd={handleOpenMemberPanel} />
-								)}
-							</ScrollArea>
-						</div>
-
-						<div className="flex flex-col min-h-0">
-							<div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 bg-muted/30">
-								<ShieldIcon className="size-3.5 text-muted-foreground" />
-								<h3 className="text-sm font-semibold tracking-tight">
-									Líderes
-								</h3>
-								<Badge variant="outline" size="sm">
-									{sectorLeaders.length}
-								</Badge>
-								{user && user.role === "admin" && (
-									<div className="ml-auto">
-										{leaderPanelOpen ? (
-											<Button
-												size="xs"
-												variant="ghost"
-												onClick={handleCloseLeaderPanel}
-												className="gap-1 text-muted-foreground"
-											>
-												<XIcon className="size-3" />
-												Cancelar
-											</Button>
-										) : (
-											<Button
-												size="xs"
-												variant="outline"
-												onClick={handleOpenLeaderPanel}
-											>
-												Gestionar
-											</Button>
-										)}
-									</div>
-								)}
-							</div>
-
-							{leaderPanelOpen ? (
-								<LeaderEditPanel
-									leaderItems={leaderItems}
-									pendingIds={pendingLeaderIds}
-									onChange={setPendingLeaderIds}
-									onSave={handleSaveLeaders}
-									isSaving={isSavingLeaders}
-									onLeaderSearchChange={setLeaderSearch}
-								/>
-							) : null}
-
-							<ScrollArea className="flex-1 max-md:max-h-[28vh]">
-								{detailLoading ? (
-									<LeadersListSkeleton />
-								) : sectorLeaders.length > 0 ? (
-									<ul className="divide-y divide-border/40">
-										{sectorLeaders.map((leader) => (
-											<li
-												key={leader._id}
-												className="flex items-center gap-3 px-4 py-2.5"
-											>
-												<Avatar className="size-7 shrink-0">
-													<AvatarFallback
-														className={cn(
-															"text-[11px] font-semibold",
-															"bg-primary/10 text-primary",
-														)}
-													>
-														{leader.name
-															.split(" ")
-															.map((part) => part[0])
-															.join("")
-															.slice(0, 2)
-															.toUpperCase()}
-													</AvatarFallback>
-												</Avatar>
-												<div className="min-w-0 flex-1">
-													<p className="text-sm font-medium truncate">
-														{leader.name}
-													</p>
-													<p className="text-xs text-muted-foreground truncate">
-														{leader.email}
-													</p>
-												</div>
-											</li>
-										))}
-									</ul>
-								) : (
-									<EmptyLeaders onManage={handleOpenLeaderPanel} />
-								)}
-							</ScrollArea>
-						</div>
-					</div>
+					{sectorContentBody}
 				</DialogPanel>
 			</DialogContent>
 		</Dialog>

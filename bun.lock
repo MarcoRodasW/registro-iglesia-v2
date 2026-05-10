@@ -5,7 +5,7 @@
     "": {
       "name": "registro-iglesia",
       "dependencies": {
-        "@base-ui/react": "^1.2.0",
+        "@base-ui/react": "^1.4.1",
         "@convex-dev/aggregate": "^0.2.1",
         "@convex-dev/better-auth": "^0.10.13",
         "@convex-dev/react-query": "0.1.0",

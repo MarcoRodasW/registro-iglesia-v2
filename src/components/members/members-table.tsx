@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	ColumnVisibilityDropdown,
 	DataTable,
+	getColumnVisibilityForRole,
 	type RoleVisibilityConfig,
 	resolveColumnVisibility,
 	saveColumnVisibility,
@@ -171,7 +172,10 @@ function useMembersColumns(
 							<Button
 								variant="ghost"
 								size="icon-xs"
-								onClick={() => onEdit(member)}
+								onClick={(e) => {
+									e.stopPropagation();
+									onEdit(member);
+								}}
 								aria-label="Ver"
 							>
 								<EyeIcon className="size-4" />
@@ -179,7 +183,10 @@ function useMembersColumns(
 							<Button
 								variant="ghost"
 								size="icon-xs"
-								onClick={() => onDelete(member)}
+								onClick={(e) => {
+									e.stopPropagation();
+									onDelete(member);
+								}}
 								aria-label="Eliminar"
 							>
 								<Trash2Icon className="size-4" />
@@ -230,12 +237,7 @@ export function MembersTable() {
 	}, []);
 
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
-		() =>
-			resolveColumnVisibility(
-				role,
-				MEMBERS_TABLE_ID,
-				MEMBERS_VISIBILITY_CONFIG,
-			),
+		() => getColumnVisibilityForRole(role, MEMBERS_VISIBILITY_CONFIG),
 	);
 
 	useEffect(() => {
@@ -323,7 +325,10 @@ export function MembersTable() {
 				) : members.length === 0 ? (
 					<EmptyState search={search} />
 				) : (
-					<DataTable table={table} />
+					<DataTable
+						table={table}
+						onRowClick={(row) => handleEditOpen(row.original)}
+					/>
 				)}
 			</CardContent>
 

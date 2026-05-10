@@ -58,19 +58,19 @@ export function SectorSelectField({
 						{selectedSector?.name ?? "Seleccionar sector"}
 					</SelectValue>
 				</SelectTrigger>
-			<SelectPopup>
-				{sectorsList.length === 0 ? (
-					<div className="text-muted-foreground px-3 py-6 text-center text-sm">
-						No hay sectores disponibles
-					</div>
-				) : (
-					sectorsList.map((sector) => (
-						<SelectItem key={sector._id} value={sector._id}>
-							{sector.name}
-						</SelectItem>
-					))
-				)}
-			</SelectPopup>
+				<SelectPopup>
+					{sectorsList.length === 0 ? (
+						<div className="text-muted-foreground px-3 py-6 text-center text-sm">
+							No hay sectores disponibles
+						</div>
+					) : (
+						sectorsList.map((sector) => (
+							<SelectItem key={sector._id} value={sector._id}>
+								{sector.name}
+							</SelectItem>
+						))
+					)}
+				</SelectPopup>
 			</Select>
 			{description && <FieldDescription>{description}</FieldDescription>}
 			<FieldValidating field={field} />

@@ -108,7 +108,11 @@ export function SectorsTable({
 								</TableHeader>
 								<TableBody>
 									{sectors.map((sector) => (
-										<TableRow key={sector._id}>
+										<TableRow
+											key={sector._id}
+											className="cursor-pointer"
+											onClick={() => handleEditRequest(sector)}
+										>
 											<TableCell className="font-medium">
 												<div className="flex items-center gap-2">
 													<MapPinIcon className="size-4 text-muted-foreground" />
@@ -126,7 +130,10 @@ export function SectorsTable({
 													</Badge>
 												)}
 											</TableCell>
-											<TableCell className="text-right">
+											<TableCell
+												className="text-right"
+												onClick={(e) => e.stopPropagation()}
+											>
 												<Button
 													variant="ghost"
 													size="icon"
