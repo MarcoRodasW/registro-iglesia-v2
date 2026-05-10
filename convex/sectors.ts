@@ -139,7 +139,10 @@ export const getOrCreateRegistrationLink = adminOrLeaderMutation({
 	},
 	handler: async (ctx, args) => {
 		
-		if (ctx.appUser.sectorId !== args.sectorId) {
+		if (
+			ctx.appUser.role !== "admin" &&
+			ctx.appUser.sectorId !== args.sectorId
+		) {
 			throw new Error("User can only manage their own sector");
 		}
 

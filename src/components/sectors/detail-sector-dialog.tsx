@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query";
 import {
 	CopyIcon,
+	LoaderIcon,
 	MapPinIcon,
 	PhoneIcon,
 	PlusIcon,
@@ -17,7 +18,7 @@ import {
 	UsersIcon,
 	XIcon,
 } from "lucide-react";
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useClipboard } from "@/hooks/use-clipboard";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn, formatPhone } from "@/lib/utils";
 import { Route } from "@/routes/_authenticated/sectors";
@@ -105,7 +107,7 @@ export function DetailSectorDialog({
 	const [memberSearch, setMemberSearch] = useState("");
 	const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
 	const [isAssigningMembers, setIsAssigningMembers] = useState(false);
-	const [isCopyingLink, startCopyTransition] = useTransition();
+	const { copy: copyToClipboard, copied: linkCopied } = useClipboard();
 
 	const sectorDetailQuery = convexQuery(api.sectors.getSector, {
 		sectorId: sector._id,
@@ -338,32 +340,32 @@ export function DetailSectorDialog({
 		[removeMembersMutation, queryClient, sectorDetailQuery.queryKey],
 	);
 
-	const handleCopyRegistrationLink = () => {
-		startCopyTransition(async () => {
-			try {
-				const result = await createOrGetRegistrationLink.mutateAsync({
-					sectorId: sector._id,
-				});
+	const handleCopyRegistrationLink = async () => {
+		try {
+			const result = await createOrGetRegistrationLink.mutateAsync({
+				sectorId: sector._id,
+			});
 
-				if (typeof window === "undefined" || !navigator.clipboard) {
-					throw new Error("Clipboard API unavailable");
-				}
-
-				await navigator.clipboard.writeText(
-					`${window.location.origin}/registro/${result.token}`,
-				);
-
+			const url = `${window.location.origin}/registro/${result.token}`;
+			const success = await copyToClipboard(url);
+			console.log("success", success, "url", url);
+			if (success) {
 				toastManager.add({
 					title: "Enlace copiado",
 					type: "success",
 				});
-			} catch {
+			} else {
 				toastManager.add({
 					title: "No se pudo copiar el enlace",
 					type: "error",
 				});
 			}
-		});
+		} catch {
+			toastManager.add({
+				title: "No se pudo copiar el enlace",
+				type: "error",
+			});
+		}
 	};
 
 	const sectorContentBody = (
@@ -569,10 +571,14 @@ export function DetailSectorDialog({
 				size="sm"
 				variant="outline"
 				onClick={() => void handleCopyRegistrationLink()}
-				disabled={isCopyingLink || createOrGetRegistrationLink.isPending}
+				disabled={linkCopied || createOrGetRegistrationLink.isPending}
 			>
-				<CopyIcon className="size-3.5" />
-				{isCopyingLink || createOrGetRegistrationLink.isPending
+				{!createOrGetRegistrationLink.isPending ? (
+					<CopyIcon className="size-3.5" />
+				) : (
+					<LoaderIcon className="size-3.5 animate-spin" />
+				)}
+				{linkCopied || createOrGetRegistrationLink.isPending
 					? "Generando enlace..."
 					: "Copiar enlace de registro"}
 			</Button>
