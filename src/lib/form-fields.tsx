@@ -1,12 +1,17 @@
 "use client";
 
 import type { AnyFieldApi } from "@tanstack/react-form";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { CalendarIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
+import { useState } from "react";
 import {
 	SectorSelectField,
 	type SectorSelectFieldProps,
 } from "@/components/sectors/sector-select-field";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input, type InputProps } from "@/components/ui/input";
@@ -17,6 +22,7 @@ import {
 	NumberFieldIncrement,
 	NumberFieldInput,
 } from "@/components/ui/number-field";
+import { Popover, PopoverPopup, PopoverTrigger } from "@/components/ui/popover";
 import {
 	Select,
 	SelectItem,
@@ -393,40 +399,52 @@ function DateField({
 }: DateFieldProps) {
 	const hasError =
 		field.state.meta.isTouched && field.state.meta.errors.length > 0;
+	const [open, setOpen] = useState(false);
 
-	// Convert timestamp to YYYY-MM-DD format for input
-	const timestampToDateString = (timestamp: number | undefined): string => {
-		if (!timestamp) return "";
-		const date = new Date(timestamp);
-		return date.toISOString().split("T")[0];
-	};
+	const selectedDate = field.state.value
+		? new Date(field.state.value as number)
+		: undefined;
 
-	// Convert YYYY-MM-DD string to timestamp
-	const dateStringToTimestamp = (dateString: string): number | undefined => {
-		if (!dateString) return undefined;
-		return new Date(dateString).getTime();
+	const handleSelect = (date: Date | undefined) => {
+		field.handleChange(date ? date.getTime() : undefined);
+		setOpen(false);
 	};
 
 	return (
 		<Field className={className}>
 			{label && (
-				<FieldLabel htmlFor={field.name}>
+				<FieldLabel>
 					<RequiredLabel>{label}</RequiredLabel>
 				</FieldLabel>
 			)}
-			<Input
-				id={field.name}
-				name={field.name}
-				type="date"
-				value={timestampToDateString(field.state.value)}
-				onChange={(e) => {
-					const timestamp = dateStringToTimestamp(e.target.value);
-					field.handleChange(timestamp);
-				}}
-				onBlur={field.handleBlur}
-				aria-invalid={hasError || undefined}
-				disabled={disabled}
-			/>
+			<Popover open={open} onOpenChange={setOpen}>
+				<PopoverTrigger
+					render={
+						<Button
+							variant="outline"
+							className="w-full justify-start font-normal"
+							aria-invalid={hasError || undefined}
+							disabled={disabled}
+							onBlur={field.handleBlur}
+						/>
+					}
+				>
+					<CalendarIcon aria-hidden="true" />
+					{selectedDate ? (
+						format(selectedDate, "PPP", { locale: es })
+					) : (
+						<span className="text-muted-foreground">Seleccionar fecha</span>
+					)}
+				</PopoverTrigger>
+				<PopoverPopup>
+					<Calendar
+						mode="single"
+						selected={selectedDate}
+						onSelect={handleSelect}
+						defaultMonth={selectedDate}
+					/>
+				</PopoverPopup>
+			</Popover>
 			{description && <FieldDescription>{description}</FieldDescription>}
 			<FieldValidating field={field} />
 			<FieldErrors field={field} />
