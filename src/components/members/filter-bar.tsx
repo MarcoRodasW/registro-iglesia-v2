@@ -63,7 +63,7 @@ export function FilterBar({ filters, filterOptions }: FilterBarProps) {
 							className="max-w-full gap-1.5"
 						>
 							<FilterIcon className="size-3.5" />
-							<span>Filtros</span>
+							<span className="hidden sm:inline">Filtros</span>
 							{activeFilterCount > 0 && (
 								<span className="rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
 									{activeFilterCount}
